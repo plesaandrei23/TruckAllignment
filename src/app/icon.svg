@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="112" fill="#1f6feb"/>
+  <g stroke="#ffffff" stroke-width="26" stroke-linecap="round" fill="none">
+    <!-- axle beam -->
+    <line x1="128" y1="256" x2="384" y2="256"/>
+    <!-- left wheel -->
+    <rect x="96" y="176" width="44" height="160" rx="18" fill="#ffffff" stroke="none"/>
+    <!-- right wheel -->
+    <rect x="372" y="176" width="44" height="160" rx="18" fill="#ffffff" stroke="none"/>
+    <!-- centre crosshair (alignment) -->
+    <line x1="256" y1="150" x2="256" y2="362"/>
+    <circle cx="256" cy="256" r="30"/>
+  </g>
+</svg>

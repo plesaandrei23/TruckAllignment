@@ -1,0 +1,190 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { useParams } from "next/navigation";
+import Link from "next/link";
+import { useLiveQuery } from "dexie-react-hooks";
+import { ChevronLeft, ChevronRight, FileText } from "lucide-react";
+import { db } from "@/lib/db";
+import { useJobEditor } from "@/lib/use-job";
+import { computeJob } from "@/lib/compute";
+import { defaultSpecId } from "@/lib/defaults";
+import { AppHeader } from "@/components/app-header";
+import { SetupStep } from "@/components/editor/setup-step";
+import { AxleStep } from "@/components/editor/axle-step";
+import { ReviewStep } from "@/components/editor/review-step";
+import { VerdictDot } from "@/components/verdict";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+type StepKind = { kind: "setup" } | { kind: "axle"; index: number } | { kind: "review" };
+
+export default function JobEditorPage() {
+  const params = useParams<{ id: string }>();
+  const id = params.id;
+  const { job, loading, update } = useJobEditor(id);
+  const specs = useLiveQuery(() => db.specs.toArray(), []) ?? [];
+  const [step, setStep] = useState(0);
+
+  // Default a tolerance profile if none chosen yet.
+  useEffect(() => {
+    if (job && !job.specProfileId) {
+      update((d) => void (d.specProfileId = defaultSpecId(d.vehicleType)));
+    }
+  }, [job, update]);
+
+  const spec = specs.find((s) => s.id === job?.specProfileId);
+  const computed = useMemo(() => (job ? computeJob(job, spec) : null), [job, spec]);
+
+  const steps: StepKind[] = useMemo(() => {
+    if (!job) return [];
+    return [
+      { kind: "setup" },
+      ...job.axles.map((_, i) => ({ kind: "axle", index: i }) as StepKind),
+      { kind: "review" },
+    ];
+  }, [job]);
+
+  if (loading) {
+    return (
+      <div className="mx-auto w-full max-w-md flex-1">
+        <AppHeader title="Loading…" back="/" />
+        <div className="space-y-3 p-4">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-24 animate-pulse rounded-lg border bg-card" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!job || !computed) {
+    return (
+      <div className="mx-auto w-full max-w-md flex-1">
+        <AppHeader title="Not found" back="/" />
+        <div className="p-8 text-center">
+          <p className="font-medium">This measurement no longer exists.</p>
+          <Button variant="outline" className="mt-4" render={<Link href="/" />}>
+            Back to measurements
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const clamped = Math.min(step, steps.length - 1);
+  const current = steps[clamped];
+  const isFirst = clamped === 0;
+  const isLast = clamped === steps.length - 1;
+
+  const stepLabel =
+    current.kind === "setup"
+      ? "Setup"
+      : current.kind === "review"
+        ? "Review"
+        : `Axle ${current.index + 1}${job.axles[current.index].isSteering ? " · steering" : ""}`;
+
+  return (
+    <div className="mx-auto flex w-full max-w-md flex-1 flex-col pb-24">
+      <AppHeader
+        title={job.header.regNo || job.header.type || "New measurement"}
+        subtitle={stepLabel}
+        back="/"
+        right={
+          <Link
+            href={`/job/${job.id}/report`}
+            className="grid size-9 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label="Report"
+          >
+            <FileText className="size-5" />
+          </Link>
+        }
+      />
+
+      <StepDots
+        steps={steps}
+        current={clamped}
+        statusFor={(s) => (s.kind === "axle" ? computed.axles[s.index].status : undefined)}
+        onSelect={setStep}
+      />
+
+      <div className="flex-1 px-4 py-4">
+        {current.kind === "setup" && <SetupStep job={job} specs={specs} update={update} />}
+        {current.kind === "axle" && (
+          <AxleStep
+            job={job}
+            index={current.index}
+            computed={computed.axles[current.index]}
+            spec={spec}
+            update={update}
+          />
+        )}
+        {current.kind === "review" && <ReviewStep job={job} computed={computed} spec={spec} />}
+      </div>
+
+      {/* sticky bottom navigation */}
+      <div className="no-print fixed inset-x-0 bottom-0 z-30 border-t bg-background/90 backdrop-blur">
+        <div
+          className="mx-auto flex w-full max-w-md items-center gap-3 px-4 py-3"
+          style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+        >
+          <Button
+            variant="outline"
+            className="flex-1"
+            disabled={isFirst}
+            onClick={() => setStep((s) => Math.max(0, s - 1))}
+          >
+            <ChevronLeft className="size-4" /> Back
+          </Button>
+          {isLast ? (
+            <Button className="flex-1" render={<Link href={`/job/${job.id}/report`} />}>
+              <FileText className="size-4" /> Report
+            </Button>
+          ) : (
+            <Button className="flex-1" onClick={() => setStep((s) => Math.min(steps.length - 1, s + 1))}>
+              Next <ChevronRight className="size-4" />
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StepDots({
+  steps,
+  current,
+  statusFor,
+  onSelect,
+}: {
+  steps: StepKind[];
+  current: number;
+  statusFor: (s: StepKind) => import("@/lib/verdict").VerdictStatus | undefined;
+  onSelect: (i: number) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1.5 overflow-x-auto border-b bg-card px-4 py-2">
+      {steps.map((s, i) => {
+        const status = statusFor(s);
+        const label =
+          s.kind === "setup" ? "Setup" : s.kind === "review" ? "Review" : `A${s.index + 1}`;
+        const active = i === current;
+        return (
+          <button
+            key={i}
+            onClick={() => onSelect(i)}
+            className={cn(
+              "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+              active
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-background text-muted-foreground hover:bg-muted",
+            )}
+          >
+            {status && !active && <VerdictDot status={status} />}
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}

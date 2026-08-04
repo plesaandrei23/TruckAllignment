@@ -1,69 +1,219 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useLiveQuery } from "dexie-react-hooks";
+import { Plus, Search, Truck, Container, SlidersHorizontal, MoreVertical, Trash2, FileText } from "lucide-react";
+import { db, ensureBuiltInSpecs, deleteJob, saveJob } from "@/lib/db";
+import { newJob } from "@/lib/defaults";
+import type { Job, VehicleType } from "@/lib/types";
+import { fmtDate } from "@/lib/format";
+import { AppHeader } from "@/components/app-header";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+
+export default function HomePage() {
+  const router = useRouter();
+  const [query, setQuery] = useState("");
+  const jobs = useLiveQuery(() => db.jobs.orderBy("updatedAt").reverse().toArray(), []);
+
+  useEffect(() => {
+    void ensureBuiltInSpecs();
+  }, []);
+
+  const filtered = useMemo(() => {
+    if (!jobs) return undefined;
+    const q = query.trim().toLowerCase();
+    if (!q) return jobs;
+    return jobs.filter((j) =>
+      [j.header.regNo, j.header.owner, j.header.type, j.header.orderNo]
+        .filter(Boolean)
+        .some((v) => v!.toLowerCase().includes(q)),
+    );
+  }, [jobs, query]);
+
+  async function create(type: VehicleType) {
+    const job = newJob(type);
+    await saveJob(job);
+    router.push(`/job/${job.id}`);
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
+      <AppHeader
+        title="TruckAlign"
+        subtitle="JOSAM AM39 alignment"
+        right={
+          <Link
+            href="/specs"
+            className="grid size-9 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label="Spec profiles"
           >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <SlidersHorizontal className="size-5" />
+          </Link>
+        }
+      />
+
+      <div className="space-y-4 px-4 py-4">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search reg no, owner, type…"
+            className="h-11 pl-9"
+          />
         </div>
-      </main>
+
+        <NewJobDialog onPick={create} />
+
+        <div className="space-y-2">
+          {filtered === undefined ? (
+            <ListSkeleton />
+          ) : filtered.length === 0 ? (
+            <EmptyState hasJobs={(jobs?.length ?? 0) > 0} />
+          ) : (
+            filtered.map((job) => (
+              <JobRow
+                key={job.id}
+                job={job}
+                onDelete={async () => {
+                  await deleteJob(job.id);
+                  toast.success("Measurement deleted");
+                }}
+              />
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NewJobDialog({ onPick }: { onPick: (t: VehicleType) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={<Button size="lg" className="h-12 w-full text-base" />}>
+        <Plus className="size-5" /> New measurement
+      </DialogTrigger>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>What are you measuring?</DialogTitle>
+          <DialogDescription>Pick the vehicle so the right report is used.</DialogDescription>
+        </DialogHeader>
+        <div className="grid grid-cols-2 gap-3 pt-1">
+          <TypeCard
+            icon={<Truck className="size-7" />}
+            label="Truck"
+            hint="Steering front axle + up to 2 more"
+            onClick={() => onPick("truck")}
+          />
+          <TypeCard
+            icon={<Container className="size-7" />}
+            label="Trailer"
+            hint="Up to 4 axles"
+            onClick={() => onPick("trailer")}
+          />
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function TypeCard({
+  icon,
+  label,
+  hint,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  hint: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex flex-col items-center gap-2 rounded-lg border bg-card p-4 text-center transition-colors hover:border-primary hover:bg-primary/5"
+    >
+      <span className="text-primary">{icon}</span>
+      <span className="font-medium">{label}</span>
+      <span className="text-xs text-muted-foreground">{hint}</span>
+    </button>
+  );
+}
+
+function JobRow({ job, onDelete }: { job: Job; onDelete: () => void }) {
+  const Icon = job.vehicleType === "truck" ? Truck : Container;
+  const title = job.header.regNo || job.header.type || "Untitled vehicle";
+  return (
+    <div className="group flex items-center gap-3 rounded-lg border bg-card p-3">
+      <Link href={`/job/${job.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+        <span className="grid size-10 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
+          <Icon className="size-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-medium">{title}</span>
+          <span className="block truncate text-xs text-muted-foreground">
+            {job.axles.length} axles · {fmtDate(job.header.date || job.updatedAt)}
+            {job.header.owner ? ` · ${job.header.owner}` : ""}
+          </span>
+        </span>
+      </Link>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={<Button variant="ghost" size="icon" className="size-8 shrink-0" aria-label="Actions" />}
+        >
+          <MoreVertical className="size-4" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem render={<Link href={`/job/${job.id}/report`} />}>
+            <FileText className="size-4" /> Open report
+          </DropdownMenuItem>
+          <DropdownMenuItem variant="destructive" onClick={onDelete}>
+            <Trash2 className="size-4" /> Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+
+function ListSkeleton() {
+  return (
+    <div className="space-y-2">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="h-16 animate-pulse rounded-lg border bg-card" />
+      ))}
+    </div>
+  );
+}
+
+function EmptyState({ hasJobs }: { hasJobs: boolean }) {
+  return (
+    <div className={cn("rounded-lg border border-dashed bg-card/50 p-8 text-center")}>
+      <p className="font-medium">{hasJobs ? "No matches" : "No measurements yet"}</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {hasJobs ? "Try a different search." : "Start a new measurement to record axle readings and build a report."}
+      </p>
     </div>
   );
 }
