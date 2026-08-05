@@ -4,6 +4,8 @@ import { useId } from "react";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { FieldHelp } from "@/components/field-help";
+import type { HelpKey } from "@/lib/help";
 import type { AngleDM } from "@/lib/calc";
 
 interface NumberFieldProps {
@@ -14,6 +16,7 @@ interface NumberFieldProps {
   placeholder?: string;
   hint?: string;
   optional?: boolean;
+  help?: HelpKey;
   className?: string;
 }
 
@@ -26,15 +29,19 @@ export function NumberField({
   placeholder = "—",
   hint,
   optional,
+  help,
   className,
 }: NumberFieldProps) {
   const id = useId();
   return (
     <div className={cn("space-y-1.5", className)}>
-      <div className="flex items-baseline justify-between">
-        <Label htmlFor={id} className="text-sm">
-          {label}
-        </Label>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1">
+          <Label htmlFor={id} className="text-sm">
+            {label}
+          </Label>
+          {help && <FieldHelp topic={help} />}
+        </div>
         {optional && <span className="text-[10px] uppercase tracking-wide text-muted-foreground">optional</span>}
       </div>
       <div className="relative">
@@ -68,11 +75,12 @@ interface AngleFieldProps {
   onChange: (v: AngleDM | undefined) => void;
   hint?: string;
   optional?: boolean;
+  help?: HelpKey;
   className?: string;
 }
 
 /** Degrees + minutes + sign, matching the AM301 gauge. Empty clears the value. */
-export function AngleField({ label, value, onChange, hint, optional, className }: AngleFieldProps) {
+export function AngleField({ label, value, onChange, hint, optional, help, className }: AngleFieldProps) {
   const sign = value?.sign ?? 1;
   const deg = value?.deg;
   const min = value?.min;
@@ -90,8 +98,11 @@ export function AngleField({ label, value, onChange, hint, optional, className }
 
   return (
     <div className={cn("space-y-1.5", className)}>
-      <div className="flex items-baseline justify-between">
-        <Label className="text-sm">{label}</Label>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1">
+          <Label className="text-sm">{label}</Label>
+          {help && <FieldHelp topic={help} />}
+        </div>
         {optional && <span className="text-[10px] uppercase tracking-wide text-muted-foreground">optional</span>}
       </div>
       <div className="flex items-stretch gap-2">

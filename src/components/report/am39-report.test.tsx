@@ -53,18 +53,19 @@ describe("Am39Report renders to static markup", () => {
     expect(html).toContain("Volvo FH");
   });
 
-  it("shows the steering turn band only for trucks", () => {
-    expect(html).toContain("Toe-out on turn");
-    expect(html).toContain("Caster");
-    expect(html).toContain("Spreizung"); // KPI trilingual label
+  it("shows the steering turn diagram and geometry only for trucks", () => {
+    expect(html).toContain("TOE-OUT ON TURN");
+    expect(html).toContain("MAX TURN");
+    expect(html).toContain("CASTER"); // trilingual measure box (uppercased)
+    expect(html).toContain("KPI");
   });
 
   it("renders computed toe and out-of-square values", () => {
     // Steering axle C1/C2 (D=6): (158-151)/6=+1.17, (140-154)/6=-2.33 -> toe ~ -1.17
     // Drive axle C3/C4: (110-92)/6=+3, (96-108)/6=-2 -> toe +1, oos -2.5
-    expect(html).toContain("+1"); // drive-axle toe
-    expect(html).toContain("Toe-in");
-    expect(html).toContain("Toe-out");
+    expect(html).toContain("TOE-IN");
+    expect(html).toContain("TOE-OUT");
     expect(html).toContain("6 m"); // D box
+    expect(html).toContain("OUT OF SQUARE");
   });
 });

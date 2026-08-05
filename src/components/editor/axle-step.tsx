@@ -78,18 +78,21 @@ function WheelCard({
       <NumberField
         label="Front scale (A)"
         unit="mm"
+        help="A"
         value={wheel.A}
         onChange={(v) => update((d) => void (d.axles[index][side].A = v))}
       />
       <NumberField
         label="Rear scale (B)"
         unit="mm"
+        help="B"
         value={wheel.B}
         onChange={(v) => update((d) => void (d.axles[index][side].B = v))}
       />
       <AngleField
         label="Camber"
         optional
+        help="camber"
         value={wheel.camber}
         onChange={(v) => update((d) => void (d.axles[index][side].camber = v))}
       />
@@ -98,12 +101,14 @@ function WheelCard({
           <AngleField
             label="Caster"
             optional
+            help="caster"
             value={wheel.caster}
             onChange={(v) => update((d) => void (d.axles[index][side].caster = v))}
           />
           <AngleField
             label="KPI"
             optional
+            help="kpi"
             value={wheel.kpi}
             onChange={(v) => update((d) => void (d.axles[index][side].kpi = v))}
           />
@@ -158,24 +163,28 @@ function SteeringAdvanced({
               <NumberField
                 label="Left · reference"
                 unit="°"
+                help="turnReference"
                 value={s.turnLeft?.reference ?? 20}
                 onChange={(v) => setSteering((st) => void ((st.turnLeft ??= {}).reference = v))}
               />
               <NumberField
                 label="Left · outer"
                 unit="°"
+                help="turnOuter"
                 value={s.turnLeft?.opposite}
                 onChange={(v) => setSteering((st) => void ((st.turnLeft ??= {}).opposite = v))}
               />
               <NumberField
                 label="Right · reference"
                 unit="°"
+                help="turnReference"
                 value={s.turnRight?.reference ?? 20}
                 onChange={(v) => setSteering((st) => void ((st.turnRight ??= {}).reference = v))}
               />
               <NumberField
                 label="Right · outer"
                 unit="°"
+                help="turnOuter"
                 value={s.turnRight?.opposite}
                 onChange={(v) => setSteering((st) => void ((st.turnRight ??= {}).opposite = v))}
               />
@@ -188,12 +197,14 @@ function SteeringAdvanced({
               <NumberField
                 label="Left lock"
                 unit="°"
+                help="maxTurn"
                 value={s.maxTurnLeft}
                 onChange={(v) => setSteering((st) => void (st.maxTurnLeft = v))}
               />
               <NumberField
                 label="Right lock"
                 unit="°"
+                help="maxTurn"
                 value={s.maxTurnRight}
                 onChange={(v) => setSteering((st) => void (st.maxTurnRight = v))}
               />
@@ -207,12 +218,14 @@ function SteeringAdvanced({
               <NumberField
                 label="Front scale (A)"
                 unit="mm"
+                help="steeringBox"
                 value={s.steeringBoxA}
                 onChange={(v) => setSteering((st) => void (st.steeringBoxA = v))}
               />
               <NumberField
                 label="Rear scale (B)"
                 unit="mm"
+                help="steeringBox"
                 value={s.steeringBoxB}
                 onChange={(v) => setSteering((st) => void (st.steeringBoxB = v))}
               />
@@ -228,12 +241,14 @@ function SteeringAdvanced({
               <NumberField
                 label="Left"
                 unit="mm"
+                help="tape"
                 value={s.tapeLeft}
                 onChange={(v) => setSteering((st) => void (st.tapeLeft = v))}
               />
               <NumberField
                 label="Right"
                 unit="mm"
+                help="tape"
                 value={s.tapeRight}
                 onChange={(v) => setSteering((st) => void (st.tapeRight = v))}
               />

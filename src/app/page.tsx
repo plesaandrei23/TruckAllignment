@@ -4,9 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Plus, Search, Truck, Container, SlidersHorizontal, MoreVertical, Trash2, FileText } from "lucide-react";
+import { Plus, Search, Truck, Container, SlidersHorizontal, MoreVertical, Trash2, FileText, Sparkles } from "lucide-react";
 import { db, ensureBuiltInSpecs, deleteJob, saveJob } from "@/lib/db";
 import { newJob } from "@/lib/defaults";
+import { makeDemoJob } from "@/lib/demo";
 import type { Job, VehicleType } from "@/lib/types";
 import { fmtDate } from "@/lib/format";
 import { AppHeader } from "@/components/app-header";
@@ -55,6 +56,13 @@ export default function HomePage() {
     router.push(`/job/${job.id}`);
   }
 
+  async function loadDemo() {
+    const job = makeDemoJob();
+    await saveJob(job);
+    toast.success("Demo measurement created");
+    router.push(`/job/${job.id}`);
+  }
+
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
       <AppHeader
@@ -88,7 +96,7 @@ export default function HomePage() {
           {filtered === undefined ? (
             <ListSkeleton />
           ) : filtered.length === 0 ? (
-            <EmptyState hasJobs={(jobs?.length ?? 0) > 0} />
+            <EmptyState hasJobs={(jobs?.length ?? 0) > 0} onDemo={loadDemo} />
           ) : (
             filtered.map((job) => (
               <JobRow
@@ -207,13 +215,20 @@ function ListSkeleton() {
   );
 }
 
-function EmptyState({ hasJobs }: { hasJobs: boolean }) {
+function EmptyState({ hasJobs, onDemo }: { hasJobs: boolean; onDemo: () => void }) {
   return (
     <div className={cn("rounded-lg border border-dashed bg-card/50 p-8 text-center")}>
       <p className="font-medium">{hasJobs ? "No matches" : "No measurements yet"}</p>
       <p className="mt-1 text-sm text-muted-foreground">
-        {hasJobs ? "Try a different search." : "Start a new measurement to record axle readings and build a report."}
+        {hasJobs
+          ? "Try a different search."
+          : "Start a new measurement to record axle readings and build a report — or load a demo to see how it works."}
       </p>
+      {!hasJobs && (
+        <Button variant="outline" className="mt-4" onClick={onDemo}>
+          <Sparkles className="size-4" /> Load demo measurement
+        </Button>
+      )}
     </div>
   );
 }

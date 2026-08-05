@@ -104,6 +104,7 @@ export function SetupStep({ job, specs, update }: SetupStepProps) {
         <NumberField
           label="Distance between scales (D)"
           unit="m"
+          help="D"
           hint="Distance between the front and rear frame gauges. Shared by every axle."
           value={job.D}
           onChange={(v) => update((d) => void (d.D = v ?? 0))}
@@ -115,7 +116,9 @@ export function SetupStep({ job, specs, update }: SetupStepProps) {
             onValueChange={(v) => update((d) => void (d.specProfileId = (v as string) || undefined))}
           >
             <SelectTrigger className="h-11 w-full">
-              <SelectValue placeholder="Choose a spec profile" />
+              <SelectValue placeholder="Choose a spec profile">
+                {(value: string) => usableSpecs.find((s) => s.id === value)?.name ?? "Choose a spec profile"}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {usableSpecs.map((s) => (
