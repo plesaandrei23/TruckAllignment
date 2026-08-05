@@ -3,7 +3,7 @@ import type { Job } from "@/lib/types";
 import type { AxleComputed, JobComputed } from "@/lib/compute";
 import type { VerdictStatus } from "@/lib/verdict";
 import { fmtAngle, fmtDate } from "@/lib/format";
-import { withSign } from "@/lib/calc";
+import { withSign, round } from "@/lib/calc";
 
 /**
  * Faithful recreation of the JOSAM AM39 test report sheet (A4 portrait), matching
@@ -49,8 +49,8 @@ export function Am39Report({ job, computed }: { job: Job; computed: JobComputed;
 
   let turnY = 0;
   if (isTruck) {
-    turnY = y;
-    y += 116;
+    turnY = y + 10;
+    y += 128;
   }
 
   const blockLayouts: {
@@ -385,7 +385,7 @@ function RollTag({ x, y, label, value }: { x: number; y: number; label: string; 
       </text>
       <text x={x + 44} y={y} fontSize={9} fontWeight={700} fill={INK} style={{ fontFamily: "var(--font-geist-mono, monospace)" }}>
         {sign}
-        {value !== undefined ? Math.abs(value) : ""}
+        {value !== undefined ? round(Math.abs(value), 1) : ""}
       </text>
     </g>
   );
@@ -486,16 +486,14 @@ function TurnDiagram({ axle, job, y }: { axle: AxleComputed; job: Job; y: number
 
   const sideBox = (bx: number, mirror: boolean) => (
     <g>
+      {/* side label above the box */}
+      <text x={bx} y={y - 2} fontSize={5.6} fill={GREY}>
+        {mirror ? "HÖGER · RIGHT · DROIT" : "VÄNSTER · LEFT · GAUCHE"}
+      </text>
       {/* big 20° reference */}
       <rect x={bx} y={y + 2} width={44} height={30} fill="none" stroke={INK} strokeWidth={0.9} />
       <text x={bx + 22} y={y + 22} fontSize={16} fontWeight={800} fill={INK} textAnchor="middle">
         20°
-      </text>
-      <text x={bx + (mirror ? -4 : 48)} y={y + 10} fontSize={5.5} fill={GREY} textAnchor={mirror ? "end" : "start"}>
-        {mirror ? "HÖGER" : "VÄNSTER"}
-      </text>
-      <text x={bx + (mirror ? -4 : 48)} y={y + 17} fontSize={5.5} fill={GREY} textAnchor={mirror ? "end" : "start"}>
-        {mirror ? "RIGHT" : "LEFT"}
       </text>
       {/* measured outer value */}
       <LabelValue
@@ -537,11 +535,8 @@ function TurnDiagram({ axle, job, y }: { axle: AxleComputed; job: Job; y: number
 
   return (
     <g>
-      <text x={M} y={y + 6} fontSize={6} fill={GREY}>
-        KURVWINKELDIFFERENS
-      </text>
-      <text x={M} y={y + 12} fontSize={6} fill={GREY}>
-        TOE-OUT ON TURN
+      <text x={cx} y={y + 4} fontSize={6.5} fontWeight={600} fill={GREY} textAnchor="middle">
+        KURVWINKELDIFFERENS · TOE-OUT ON TURN · DIFFÉRENCE DE COURBE D&apos;ANGLE
       </text>
       {sideBox(M, false)}
       {sideBox(SHEET_W - M - 64, true)}
