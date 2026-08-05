@@ -91,7 +91,7 @@ export default function SpecEditorPage() {
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
       <AppHeader
-        title={spec.name || t("Untitled profile")}
+        title={spec.name ? t(spec.name) : t("Untitled profile")}
         subtitle={t(isTruck ? "Truck" : "Trailer")}
         back="/specs"
         right={

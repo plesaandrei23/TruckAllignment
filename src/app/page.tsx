@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Plus, Search, Truck, Container, SlidersHorizontal, MoreVertical, Trash2, FileText, Sparkles } from "lucide-react";
 import { db, ensureBuiltInSpecs, deleteJob, saveJob } from "@/lib/db";
-import { newJob } from "@/lib/defaults";
+import { newJob, newTruck8x4 } from "@/lib/defaults";
 import { makeDemoJob } from "@/lib/demo";
 import type { Job, VehicleType } from "@/lib/types";
 import { fmtDate } from "@/lib/format";
@@ -53,8 +53,8 @@ export default function HomePage() {
     );
   }, [jobs, query]);
 
-  async function create(type: VehicleType) {
-    const job = newJob(type);
+  async function create(kind: VehicleType | "truck8x4") {
+    const job = kind === "truck8x4" ? newTruck8x4() : newJob(kind);
     await saveJob(job);
     router.push(`/job/${job.id}`);
   }
@@ -121,7 +121,7 @@ export default function HomePage() {
   );
 }
 
-function NewJobDialog({ onPick }: { onPick: (t: VehicleType) => void }) {
+function NewJobDialog({ onPick }: { onPick: (t: VehicleType | "truck8x4") => void }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   return (
@@ -142,10 +142,17 @@ function NewJobDialog({ onPick }: { onPick: (t: VehicleType) => void }) {
             onClick={() => onPick("truck")}
           />
           <TypeCard
+            icon={<Truck className="size-7" />}
+            label={t("Truck 8×4")}
+            hint={t("2 steering axles + 2 more")}
+            onClick={() => onPick("truck8x4")}
+          />
+          <TypeCard
             icon={<Container className="size-7" />}
             label={t("Trailer")}
             hint={t("Up to 4 axles")}
             onClick={() => onPick("trailer")}
+            className="col-span-2"
           />
         </div>
       </DialogContent>
@@ -158,16 +165,21 @@ function TypeCard({
   label,
   hint,
   onClick,
+  className,
 }: {
   icon: React.ReactNode;
   label: string;
   hint: string;
   onClick: () => void;
+  className?: string;
 }) {
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center gap-2 rounded-lg border bg-card p-4 text-center transition-colors hover:border-primary hover:bg-primary/5"
+      className={cn(
+        "flex flex-col items-center gap-2 rounded-lg border bg-card p-4 text-center transition-colors hover:border-primary hover:bg-primary/5",
+        className,
+      )}
     >
       <span className="text-primary">{icon}</span>
       <span className="font-medium">{label}</span>

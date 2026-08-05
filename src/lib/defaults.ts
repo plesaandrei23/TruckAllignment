@@ -10,9 +10,9 @@
 import type { Axle, Job, SpecProfile, VehicleType } from "./types";
 import { MM_PER_DEGREE } from "./calc";
 
-/** Max axle-pairs the AM39 report supports per vehicle type. */
+/** Max axles the editor allows per vehicle type (report template extends to fit). */
 export const MAX_AXLES: Record<VehicleType, number> = {
-  truck: 3,
+  truck: 5,
   trailer: 4,
 };
 
@@ -49,6 +49,17 @@ export function newJob(vehicleType: VehicleType): Job {
   };
 }
 
+/**
+ * An 8×4 truck preset: 4 axles with the two front axles steering. Uses the 8×4
+ * tolerance profile.
+ */
+export function newTruck8x4(): Job {
+  const job = newJob("truck");
+  job.axles = [newAxle(true), newAxle(true), newAxle(false), newAxle(false)];
+  job.specProfileId = "builtin-truck-8x4";
+  return job;
+}
+
 /** Fixed limits taken straight from the JOSAM manual. */
 const MANUAL_FIXED = {
   tootDiffMax: 0.5, // degrees (30')
@@ -63,6 +74,21 @@ export const DEFAULT_SPECS: SpecProfile[] = [
     vehicleType: "truck",
     builtIn: true,
     toe: { min: -1, max: 2.5 }, // mm/m, slight toe-in tolerated on the steer axle
+    toeUnit: "mm/m",
+    camber: { min: -0.25, max: 0.75 }, // degrees
+    caster: { min: 1, max: 4 }, // degrees
+    kpi: { min: 4, max: 9 }, // degrees
+    outOfSquareMax: 2, // mm/m
+    parallelismMax: 2, // mm/m
+    maxTurn: { min: 35, max: 45 }, // degrees
+    ...MANUAL_FIXED,
+  },
+  {
+    id: "builtin-truck-8x4",
+    name: "Truck 8×4 (2 steering)",
+    vehicleType: "truck",
+    builtIn: true,
+    toe: { min: -1, max: 2.5 }, // mm/m
     toeUnit: "mm/m",
     camber: { min: -0.25, max: 0.75 }, // degrees
     caster: { min: 1, max: 4 }, // degrees

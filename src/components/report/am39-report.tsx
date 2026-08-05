@@ -626,6 +626,13 @@ function AxleRow({ axle, job, y, h, tr }: { axle: AxleComputed; job: Job; y: num
         <g transform={`translate(${centreX + 8}, ${y + 38})`}>
           <RollTag x={0} y={0} label={`C${axle.wheelNo.right}`} value={axle.cRight} />
         </g>
+        {/* Result: EQUAL / TOE-IN / TOE-OUT (matches the geometrieTir form) */}
+        <text x={centreX + 8} y={y + 50} fontSize={6.5} fill={GREY}>
+          {tr("Result")}:{" "}
+          <tspan fontWeight={700} fill={vfill(axle.toeVerdict.status).text}>
+            {tr(axle.toeKind === "toe-in" ? "TOE-IN" : axle.toeKind === "toe-out" ? "TOE-OUT" : "EQUAL")}
+          </tspan>
+        </text>
 
         <Wheel x={centreX + 24} y={y + 44} dual={!steering} />
         <g transform={`translate(0, ${y})`}>

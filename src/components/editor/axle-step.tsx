@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import type { WritableDraft } from "immer";
-import { ChevronDown, SlidersHorizontal } from "lucide-react";
+import { Gauge } from "lucide-react";
 import type { Job, SpecProfile } from "@/lib/types";
 import type { AxleComputed } from "@/lib/compute";
 import { NumberField, AngleField } from "@/components/fields";
 import { LiveReadout } from "./live-readout";
 import { Switch } from "@/components/ui/switch";
-import { cn } from "@/lib/utils";
+import { SteeringWheel } from "@/components/icons";
 import { useI18n } from "@/lib/i18n";
 
 interface AxleStepProps {
@@ -82,53 +82,101 @@ function WheelCard({
   );
 }
 
+/**
+ * A section that reveals its content with a toggle. Shared design for Camber and
+ * Steering geometry so both read the same way.
+ */
+function ToggleSection({
+  icon,
+  title,
+  subtitle,
+  defaultOn = false,
+  onToggle,
+  children,
+}: {
+  icon: ReactNode;
+  title: string;
+  subtitle?: string;
+  defaultOn?: boolean;
+  onToggle?: (on: boolean) => void;
+  children: ReactNode;
+}) {
+  const [on, setOn] = useState(defaultOn);
+  const toggle = (v: boolean) => {
+    setOn(v);
+    onToggle?.(v);
+  };
+  return (
+    <div className="rounded-lg border bg-card">
+      <label className="flex cursor-pointer items-center justify-between p-4">
+        <span className="flex items-center gap-2 text-sm font-semibold">
+          <span className="text-muted-foreground">{icon}</span>
+          {title}
+          {subtitle && <span className="text-xs font-normal text-muted-foreground">{subtitle}</span>}
+        </span>
+        <Switch checked={on} onCheckedChange={toggle} />
+      </label>
+      {on && <div className="border-t p-4">{children}</div>}
+    </div>
+  );
+}
+
 /** Camber is hidden by default; the toggle reveals the left/right inputs. */
 function CamberSection({ job, index, update }: { job: Job; index: number; update: AxleStepProps["update"] }) {
   const { t } = useI18n();
   const axle = job.axles[index];
   const hasData = axle.left.camber !== undefined || axle.right.camber !== undefined;
-  const [on, setOn] = useState(hasData);
-
-  const toggle = (v: boolean) => {
-    setOn(v);
-    if (!v) {
-      // Turning off clears any recorded camber so it won't affect the verdict.
-      update((d) => {
-        d.axles[index].left.camber = undefined;
-        d.axles[index].right.camber = undefined;
-      });
-    }
-  };
 
   return (
-    <div className="rounded-lg border bg-card">
-      <label className="flex cursor-pointer items-center justify-between p-4">
-        <span className="text-sm font-semibold">{t("Record camber")}</span>
-        <Switch checked={on} onCheckedChange={toggle} />
-      </label>
-      {on && (
-        <div className="grid grid-cols-2 gap-3 border-t p-4">
-          <AngleField
-            label={t("Left")}
-            help="camber"
-            value={axle.left.camber}
-            onChange={(v) => update((d) => void (d.axles[index].left.camber = v))}
-          />
-          <AngleField
-            label={t("Right")}
-            help="camber"
-            value={axle.right.camber}
-            onChange={(v) => update((d) => void (d.axles[index].right.camber = v))}
-          />
-        </div>
-      )}
-    </div>
+    <ToggleSection
+      icon={<Gauge className="size-4" />}
+      title={t("Camber")}
+      defaultOn={hasData}
+      onToggle={(on) => {
+        if (!on) {
+          // Turning off clears any recorded camber so it won't affect the verdict.
+          update((d) => {
+            d.axles[index].left.camber = undefined;
+            d.axles[index].right.camber = undefined;
+          });
+        }
+      }}
+    >
+      <div className="grid grid-cols-2 gap-3">
+        <AngleField
+          label={t("Left")}
+          help="camber"
+          value={axle.left.camber}
+          onChange={(v) => update((d) => void (d.axles[index].left.camber = v))}
+        />
+        <AngleField
+          label={t("Right")}
+          help="camber"
+          value={axle.right.camber}
+          onChange={(v) => update((d) => void (d.axles[index].right.camber = v))}
+        />
+      </div>
+    </ToggleSection>
+  );
+}
+
+function hasSteeringData(s: NonNullable<Job["axles"][number]["steering"]>, axle: Job["axles"][number]): boolean {
+  return (
+    axle.left.caster !== undefined ||
+    axle.right.caster !== undefined ||
+    axle.left.kpi !== undefined ||
+    axle.right.kpi !== undefined ||
+    s.turnLeft?.opposite !== undefined ||
+    s.turnRight?.opposite !== undefined ||
+    s.maxTurnLeft !== undefined ||
+    s.maxTurnRight !== undefined ||
+    s.steeringBoxA !== undefined ||
+    s.tapeLeft !== undefined
   );
 }
 
 function SteeringAdvanced({ job, index, update }: { job: Job; index: number; update: AxleStepProps["update"] }) {
   const { t } = useI18n();
-  const [open, setOpen] = useState(false);
   const axle = job.axles[index];
   const s = axle.steering ?? {};
 
@@ -140,21 +188,13 @@ function SteeringAdvanced({ job, index, update }: { job: Job; index: number; upd
     });
 
   return (
-    <div className="rounded-lg border bg-card">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between p-4 text-left"
-      >
-        <span className="flex items-center gap-2 text-sm font-semibold">
-          <SlidersHorizontal className="size-4 text-muted-foreground" />
-          {t("Steering geometry")}
-          <span className="text-xs font-normal text-muted-foreground">{t("optional")}</span>
-        </span>
-        <ChevronDown className={cn("size-4 text-muted-foreground transition-transform", open && "rotate-180")} />
-      </button>
-      {open && (
-        <div className="space-y-5 border-t p-4">
+    <ToggleSection
+      icon={<SteeringWheel className="size-4" />}
+      title={t("Steering geometry")}
+      subtitle={t("optional")}
+      defaultOn={hasSteeringData(s, axle)}
+    >
+      <div className="space-y-5">
           <section className="space-y-3">
             <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {t("Caster")} · {t("KPI")}
@@ -285,8 +325,7 @@ function SteeringAdvanced({ job, index, update }: { job: Job; index: number; upd
               />
             </div>
           </section>
-        </div>
-      )}
-    </div>
+      </div>
+    </ToggleSection>
   );
 }

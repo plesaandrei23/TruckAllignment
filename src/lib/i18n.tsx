@@ -30,9 +30,15 @@ const RO: Record<string, string> = {
   "What are you measuring?": "Ce măsori?",
   "Pick the vehicle so the right report is used.": "Alege vehiculul pentru a folosi raportul potrivit.",
   "Truck": "Camion",
+  "Truck 8×4": "Camion 8×4",
   "Trailer": "Remorcă",
   "Steering front axle + up to 2 more": "Axă față directoare + încă maxim 2",
+  "2 steering axles + 2 more": "2 axe directoare + încă 2",
   "Up to 4 axles": "Până la 4 axe",
+  // built-in profile names
+  "Generic Truck": "Camion generic",
+  "Truck 8×4 (2 steering)": "Camion 8×4 (2 axe directoare)",
+  "Generic Trailer": "Remorcă generică",
   "axles": "axe",
   "Untitled vehicle": "Vehicul fără nume",
   "Actions": "Acțiuni",
@@ -54,6 +60,7 @@ const RO: Record<string, string> = {
   "Distance between the front and rear frame gauges. Shared by every axle.":
     "Distanța dintre riglele față și spate ale cadrului. Comună tuturor axelor.",
   "Tolerance profile": "Profil de toleranță",
+  "Profile": "Profil",
   "Choose a spec profile": "Alege un profil",
   "Decides which readings pass or fail.": "Stabilește ce citiri trec sau pică.",
   "Axles": "Axe",
@@ -180,8 +187,14 @@ const RO: Record<string, string> = {
   "Order N°": "Nr. comandă",
   "Reg. N°": "Nr. înmatr.",
   "Type": "Tip",
-  "Miles/Km": "Mile/Km",
+  "Miles/Km": "Km",
   "Sign": "Semnătură",
+  "Notes-r": "Observații",
+  // per-axle toe result (matches geometrieTir xls)
+  "Result": "Rezultat",
+  "TOE-IN": "CONVERGENȚĂ",
+  "TOE-OUT": "DIVERGENȚĂ",
+  "EQUAL": "EGAL",
 };
 
 const DICTS: Record<Lang, Record<string, string>> = { en: {}, ro: RO };

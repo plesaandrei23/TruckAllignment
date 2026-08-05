@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import type { WritableDraft } from "immer";
-import { ChevronDown, Plus, Trash2, Navigation } from "lucide-react";
+import { ChevronDown, Plus, Trash2 } from "lucide-react";
+import { SteeringWheel } from "@/components/icons";
 import type { Job, SpecProfile } from "@/lib/types";
 import { wheelNumbers } from "@/lib/types";
 import { MAX_AXLES, newAxle } from "@/lib/defaults";
@@ -94,20 +95,23 @@ export function SetupStep({ job, specs, update }: SetupStepProps) {
           onChange={(v) => update((d) => void (d.D = v ?? 0))}
         />
         <div className="space-y-1.5">
-          <Label className="text-sm">{t("Tolerance profile")}</Label>
+          <Label className="text-sm">{t("Profile")}</Label>
           <Select
             value={job.specProfileId ?? ""}
             onValueChange={(v) => update((d) => void (d.specProfileId = (v as string) || undefined))}
           >
             <SelectTrigger className="h-11 w-full">
               <SelectValue placeholder={t("Choose a spec profile")}>
-                {(value: string) => usableSpecs.find((s) => s.id === value)?.name ?? t("Choose a spec profile")}
+                {(value: string) => {
+                  const found = usableSpecs.find((s) => s.id === value);
+                  return found ? t(found.name) : t("Choose a spec profile");
+                }}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {usableSpecs.map((s) => (
                 <SelectItem key={s.id} value={s.id}>
-                  {s.name}
+                  {t(s.name)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -137,7 +141,7 @@ export function SetupStep({ job, specs, update }: SetupStepProps) {
                 </span>
                 {isTruck && (
                   <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-muted-foreground">
-                    <Navigation className={cn("size-3.5", axle.isSteering && "text-primary")} />
+                    <SteeringWheel className={cn("size-4", axle.isSteering && "text-primary")} />
                     <span className="hidden sm:inline">{t("Steering")}</span>
                     <Switch checked={axle.isSteering} onCheckedChange={(v) => setSteering(i, v)} />
                   </label>

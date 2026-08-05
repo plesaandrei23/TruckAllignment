@@ -89,7 +89,7 @@ function Group({ title, icon, specs }: { title: string; icon: React.ReactNode; s
               >
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2 font-medium">
-                    {s.name || t("Untitled profile")}
+                    {s.name ? t(s.name) : t("Untitled profile")}
                     {s.builtIn && (
                       <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
                         <Lock className="size-3" /> {t("built-in")}
