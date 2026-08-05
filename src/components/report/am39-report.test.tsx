@@ -69,3 +69,34 @@ describe("Am39Report renders to static markup", () => {
     expect(html).toContain("OUT OF SQUARE");
   });
 });
+
+describe("Am39Report trailer variant (two ruler blocks, no turn diagram)", () => {
+  const spec = DEFAULT_SPECS.find((s) => s.vehicleType === "trailer");
+  const job: Job = {
+    id: "tr",
+    createdAt: 0,
+    updatedAt: 0,
+    vehicleType: "trailer",
+    header: { regNo: "TRL-1" },
+    D: 6,
+    axles: Array.from({ length: 4 }, (_, i) => ({
+      id: `a${i}`,
+      isSteering: false,
+      left: { A: 100 + i, B: 100 },
+      right: { A: 100, B: 100 + i },
+    })),
+  };
+  const computed = computeJob(job, spec);
+  const html = renderToStaticMarkup(<Am39Report job={job} computed={computed} spec={spec} />);
+
+  it("renders four axles across two blocks (A1..A4, B1..B4)", () => {
+    for (const tag of ["A1", "A2", "A3", "A4", "B1", "B2", "B3", "B4"]) {
+      expect(html).toContain(`>${tag}<`);
+    }
+  });
+
+  it("has no truck-only turn diagram", () => {
+    expect(html).not.toContain("TOE-OUT ON TURN");
+    expect(html).not.toContain("MAX TURN");
+  });
+});

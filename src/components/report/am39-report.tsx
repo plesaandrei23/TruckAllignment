@@ -136,30 +136,6 @@ export function Am39Report({ job, computed }: { job: Job; computed: JobComputed;
 /* Primitives                                                          */
 /* ------------------------------------------------------------------ */
 
-function Box({
-  x,
-  y,
-  w,
-  h,
-  status = "unknown",
-  children,
-}: {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  status?: VerdictStatus;
-  children?: ReactNode;
-}) {
-  const c = vfill(status);
-  return (
-    <>
-      <rect x={x} y={y} width={w} height={h} fill={c.fill} stroke={INK} strokeWidth={0.8} />
-      {children}
-    </>
-  );
-}
-
 /** A boxed value with a small label tab, e.g. A₁ | 158. */
 function LabelValue({
   x,
