@@ -4,6 +4,7 @@ import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { RegisterSW } from "@/components/register-sw";
+import { I18nProvider } from "@/lib/i18n";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,8 +42,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <TooltipProvider>{children}</TooltipProvider>
-        <Toaster richColors position="top-center" />
+        <I18nProvider>
+          <TooltipProvider>{children}</TooltipProvider>
+          <Toaster richColors position="top-center" />
+        </I18nProvider>
         <RegisterSW />
       </body>
     </html>

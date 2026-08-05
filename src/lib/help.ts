@@ -80,3 +80,76 @@ export const HELP = {
 } as const;
 
 export type HelpKey = keyof typeof HELP;
+
+/** Romanian help text (same keys as HELP). */
+export const HELP_RO: Record<HelpKey, HelpText> = {
+  D: {
+    title: "Distanța dintre rigle (D)",
+    body: "Măsoară distanța, în metri, dintre rigla față (A) și rigla spate (B) ale cadrului. O singură valoare pentru tot vehiculul. Exemplu din manual: D = 6 m.",
+    ref: "Manual pag. 26",
+  },
+  A: {
+    title: "Citirea riglei față (A)",
+    body: "Îndreaptă punctul laser spre rigla FAȚĂ a acestei roți și citește valoarea în mm. Roata stânga → rigla A1, roata dreapta → rigla A2. Exemplu: 158.",
+    ref: "Manual pag. 26, 40",
+  },
+  B: {
+    title: "Citirea riglei spate (B)",
+    body: "Îndreaptă punctul laser spre rigla SPATE a acestei roți și citește valoarea în mm. Roata stânga → rigla B1, roata dreapta → rigla B2. Exemplu: 151.",
+    ref: "Manual pag. 26, 40",
+  },
+  camber: {
+    title: "Camber (unghi de cădere)",
+    body: "Înclinarea roții văzută din față. Partea de sus înclinată în AFARĂ = pozitiv (+), spre INTERIOR = negativ (−). Se măsoară cu aparatul AM301, axa la nivel și roata încărcată pe sol. Grade și minute.",
+    ref: "Manual pag. 36, 45",
+  },
+  caster: {
+    title: "Caster (unghi de fugă)",
+    body: "Înclinarea față/spate a pivotului văzută din lateral. Partea de sus înclinată SPATE = pozitiv (+), față = negativ (−). Rotește roata 20° în afară, apoi 20° înăuntru cu platourile și citește pe AM301. Doar axă directoare.",
+    ref: "Manual pag. 46–49",
+  },
+  kpi: {
+    title: "KPI — înclinare pivot",
+    body: "Înclinarea spre interior a pivotului văzută din față/spate. Întotdeauna pozitivă. Rotește 20° în afară, apoi 20° înăuntru și citește diferența pe AM301. Axa la nivel și frâna acționată. Doar axă directoare.",
+    ref: "Manual pag. 50–53",
+  },
+  turnReference: {
+    title: "Viraj — unghi de referință",
+    body: "Unghiul la care rotești roata INTERIOARĂ pe aparatul de unghi (AM135), de obicei 20°. Citește roata exterioară de pe partea opusă.",
+    ref: "Manual pag. 54",
+  },
+  turnOuter: {
+    title: "Viraj — roata exterioară",
+    body: "Cu roata interioară ținută la unghiul de referință, citește unghiul roții EXTERIOARE pe aparatul opus. Diferența la viraj = referință − exterioară. Stânga și dreapta nu trebuie să difere cu mai mult de 0,5°.",
+    ref: "Manual pag. 54",
+  },
+  maxTurn: {
+    title: "Viraj maxim",
+    body: "Rotește roata cât de mult se poate și citește unghiul maxim de blocaj pe aparatul de unghi. Compară stânga cu dreapta față de specificația producătorului. Doar axă directoare.",
+    ref: "Manual pag. 55",
+  },
+  steeringBox: {
+    title: "Centrare casetă direcție",
+    body: "Cu caseta de direcție pe reperul central, îndreaptă laserul spre rigla față (A), apoi spre rigla spate (B) și citește-le pe amândouă. Abaterea (A−B)/D trebuie să fie ≤ 1°/m (≈17,4 mm/m).",
+    ref: "Manual pag. 38–39",
+  },
+  tape: {
+    title: "Abatere măsurată cu ruleta",
+    body: "Cu o ruletă, măsoară de la ochiul arcului la un reper comun (ex. gaura bridei) pe fiecare parte. Stânga și dreapta nu trebuie să difere cu mai mult de 5 mm.",
+    ref: "Manual pag. 44",
+  },
+  toe: {
+    title: "Convergență",
+    body: "Calculată din ambele roți. Pozitiv = convergență (fața roților mai apropiată), negativ = divergență. Stabilită de specificația producătorului.",
+    ref: "Manual pag. 20, 37",
+  },
+  outOfSquare: {
+    title: "Abatere de la perpendicular",
+    body: "Cât de mult stă axa în afara axei longitudinale a vehiculului. Pozitiv = deplasare spre stânga, negativ = spre dreapta. Jumătate din diferența direcțiilor de rulare ale celor două roți.",
+    ref: "Manual pag. 30, 34",
+  },
+};
+
+export function helpFor(lang: "en" | "ro", topic: HelpKey): HelpText {
+  return lang === "ro" ? HELP_RO[topic] : HELP[topic];
+}

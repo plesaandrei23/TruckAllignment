@@ -7,7 +7,9 @@ import type { Job, SpecProfile } from "@/lib/types";
 import type { AxleComputed } from "@/lib/compute";
 import { NumberField, AngleField } from "@/components/fields";
 import { LiveReadout } from "./live-readout";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 interface AxleStepProps {
   job: Job;
@@ -18,46 +20,33 @@ interface AxleStepProps {
 }
 
 export function AxleStep({ job, index, computed, spec, update }: AxleStepProps) {
+  const { t } = useI18n();
   const axle = job.axles[index];
   const { left: cL, right: cR } = computed.wheelNo;
 
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <WheelCard
-          title="Left wheel"
-          code={`C${cL}`}
-          job={job}
-          index={index}
-          side="left"
-          isSteering={axle.isSteering}
-          update={update}
-        />
-        <WheelCard
-          title="Right wheel"
-          code={`C${cR}`}
-          job={job}
-          index={index}
-          side="right"
-          isSteering={axle.isSteering}
-          update={update}
-        />
+        <WheelCard title={t("Left wheel")} code={`C${cL}`} job={job} index={index} side="left" update={update} />
+        <WheelCard title={t("Right wheel")} code={`C${cR}`} job={job} index={index} side="right" update={update} />
       </div>
 
       <LiveReadout axle={computed} spec={spec} />
+
+      <CamberSection job={job} index={index} update={update} />
 
       {axle.isSteering && <SteeringAdvanced job={job} index={index} update={update} />}
     </div>
   );
 }
 
+/** Minimal wheel card — only the two scale readings the device prints. */
 function WheelCard({
   title,
   code,
   job,
   index,
   side,
-  isSteering,
   update,
 }: {
   title: string;
@@ -65,9 +54,9 @@ function WheelCard({
   job: Job;
   index: number;
   side: "left" | "right";
-  isSteering: boolean;
   update: AxleStepProps["update"];
 }) {
+  const { t } = useI18n();
   const wheel = job.axles[index][side];
   return (
     <div className="space-y-3 rounded-lg border bg-card p-4">
@@ -76,61 +65,73 @@ function WheelCard({
         <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">{code}</span>
       </div>
       <NumberField
-        label="Front scale (A)"
+        label={t("Front scale (A)")}
         unit="mm"
         help="A"
         value={wheel.A}
         onChange={(v) => update((d) => void (d.axles[index][side].A = v))}
       />
       <NumberField
-        label="Rear scale (B)"
+        label={t("Rear scale (B)")}
         unit="mm"
         help="B"
         value={wheel.B}
         onChange={(v) => update((d) => void (d.axles[index][side].B = v))}
       />
-      <AngleField
-        label="Camber"
-        optional
-        help="camber"
-        value={wheel.camber}
-        onChange={(v) => update((d) => void (d.axles[index][side].camber = v))}
-      />
-      {isSteering && (
-        <>
+    </div>
+  );
+}
+
+/** Camber is hidden by default; the toggle reveals the left/right inputs. */
+function CamberSection({ job, index, update }: { job: Job; index: number; update: AxleStepProps["update"] }) {
+  const { t } = useI18n();
+  const axle = job.axles[index];
+  const hasData = axle.left.camber !== undefined || axle.right.camber !== undefined;
+  const [on, setOn] = useState(hasData);
+
+  const toggle = (v: boolean) => {
+    setOn(v);
+    if (!v) {
+      // Turning off clears any recorded camber so it won't affect the verdict.
+      update((d) => {
+        d.axles[index].left.camber = undefined;
+        d.axles[index].right.camber = undefined;
+      });
+    }
+  };
+
+  return (
+    <div className="rounded-lg border bg-card">
+      <label className="flex cursor-pointer items-center justify-between p-4">
+        <span className="text-sm font-semibold">{t("Record camber")}</span>
+        <Switch checked={on} onCheckedChange={toggle} />
+      </label>
+      {on && (
+        <div className="grid grid-cols-2 gap-3 border-t p-4">
           <AngleField
-            label="Caster"
-            optional
-            help="caster"
-            value={wheel.caster}
-            onChange={(v) => update((d) => void (d.axles[index][side].caster = v))}
+            label={t("Left")}
+            help="camber"
+            value={axle.left.camber}
+            onChange={(v) => update((d) => void (d.axles[index].left.camber = v))}
           />
           <AngleField
-            label="KPI"
-            optional
-            help="kpi"
-            value={wheel.kpi}
-            onChange={(v) => update((d) => void (d.axles[index][side].kpi = v))}
+            label={t("Right")}
+            help="camber"
+            value={axle.right.camber}
+            onChange={(v) => update((d) => void (d.axles[index].right.camber = v))}
           />
-        </>
+        </div>
       )}
     </div>
   );
 }
 
-function SteeringAdvanced({
-  job,
-  index,
-  update,
-}: {
-  job: Job;
-  index: number;
-  update: AxleStepProps["update"];
-}) {
+function SteeringAdvanced({ job, index, update }: { job: Job; index: number; update: AxleStepProps["update"] }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
-  const s = job.axles[index].steering ?? {};
+  const axle = job.axles[index];
+  const s = axle.steering ?? {};
 
-  // Ensure the steering object exists before writing nested fields.
   const setSteering = (recipe: (st: NonNullable<Job["axles"][number]["steering"]>) => void) =>
     update((d) => {
       const ax = d.axles[index];
@@ -147,42 +148,74 @@ function SteeringAdvanced({
       >
         <span className="flex items-center gap-2 text-sm font-semibold">
           <SlidersHorizontal className="size-4 text-muted-foreground" />
-          Steering geometry
-          <span className="text-xs font-normal text-muted-foreground">optional</span>
+          {t("Steering geometry")}
+          <span className="text-xs font-normal text-muted-foreground">{t("optional")}</span>
         </span>
         <ChevronDown className={cn("size-4 text-muted-foreground transition-transform", open && "rotate-180")} />
       </button>
       {open && (
         <div className="space-y-5 border-t p-4">
           <section className="space-y-3">
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Toe-out on turn</h4>
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {t("Caster")} · {t("KPI")}
+            </h4>
+            <div className="grid grid-cols-2 gap-3">
+              <AngleField
+                label={`${t("Caster")} · ${t("Left")}`}
+                help="caster"
+                value={axle.left.caster}
+                onChange={(v) => update((d) => void (d.axles[index].left.caster = v))}
+              />
+              <AngleField
+                label={`${t("Caster")} · ${t("Right")}`}
+                help="caster"
+                value={axle.right.caster}
+                onChange={(v) => update((d) => void (d.axles[index].right.caster = v))}
+              />
+              <AngleField
+                label={`${t("KPI")} · ${t("Left")}`}
+                help="kpi"
+                value={axle.left.kpi}
+                onChange={(v) => update((d) => void (d.axles[index].left.kpi = v))}
+              />
+              <AngleField
+                label={`${t("KPI")} · ${t("Right")}`}
+                help="kpi"
+                value={axle.right.kpi}
+                onChange={(v) => update((d) => void (d.axles[index].right.kpi = v))}
+              />
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("Toe-out on turn")}</h4>
             <p className="text-xs text-muted-foreground">
-              Turn inner wheel to a reference angle, read the outer wheel. Sides should differ by ≤ 0.5°.
+              {t("Turn inner wheel to a reference angle, read the outer wheel. Sides should differ by ≤ 0.5°.")}
             </p>
             <div className="grid grid-cols-2 gap-3">
               <NumberField
-                label="Left · reference"
+                label={t("Left · reference")}
                 unit="°"
                 help="turnReference"
                 value={s.turnLeft?.reference ?? 20}
                 onChange={(v) => setSteering((st) => void ((st.turnLeft ??= {}).reference = v))}
               />
               <NumberField
-                label="Left · outer"
+                label={t("Left · outer")}
                 unit="°"
                 help="turnOuter"
                 value={s.turnLeft?.opposite}
                 onChange={(v) => setSteering((st) => void ((st.turnLeft ??= {}).opposite = v))}
               />
               <NumberField
-                label="Right · reference"
+                label={t("Right · reference")}
                 unit="°"
                 help="turnReference"
                 value={s.turnRight?.reference ?? 20}
                 onChange={(v) => setSteering((st) => void ((st.turnRight ??= {}).reference = v))}
               />
               <NumberField
-                label="Right · outer"
+                label={t("Right · outer")}
                 unit="°"
                 help="turnOuter"
                 value={s.turnRight?.opposite}
@@ -192,17 +225,17 @@ function SteeringAdvanced({
           </section>
 
           <section className="space-y-3">
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Maximum turn</h4>
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("Maximum turn")}</h4>
             <div className="grid grid-cols-2 gap-3">
               <NumberField
-                label="Left lock"
+                label={t("Left lock")}
                 unit="°"
                 help="maxTurn"
                 value={s.maxTurnLeft}
                 onChange={(v) => setSteering((st) => void (st.maxTurnLeft = v))}
               />
               <NumberField
-                label="Right lock"
+                label={t("Right lock")}
                 unit="°"
                 help="maxTurn"
                 value={s.maxTurnRight}
@@ -212,18 +245,18 @@ function SteeringAdvanced({
           </section>
 
           <section className="space-y-3">
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Steering-box centering</h4>
-            <p className="text-xs text-muted-foreground">Deviation must be ≤ 1°/m (≈ 17.4 mm/m).</p>
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("Steering-box centering")}</h4>
+            <p className="text-xs text-muted-foreground">{t("Deviation must be ≤ 1°/m (≈ 17.4 mm/m).")}</p>
             <div className="grid grid-cols-2 gap-3">
               <NumberField
-                label="Front scale (A)"
+                label={t("Front scale (A)")}
                 unit="mm"
                 help="steeringBox"
                 value={s.steeringBoxA}
                 onChange={(v) => setSteering((st) => void (st.steeringBoxA = v))}
               />
               <NumberField
-                label="Rear scale (B)"
+                label={t("Rear scale (B)")}
                 unit="mm"
                 help="steeringBox"
                 value={s.steeringBoxB}
@@ -233,20 +266,18 @@ function SteeringAdvanced({
           </section>
 
           <section className="space-y-3">
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Out of square (tape)
-            </h4>
-            <p className="text-xs text-muted-foreground">Left vs right spring-eye distance. Max difference 5 mm.</p>
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("Out of square (tape)")}</h4>
+            <p className="text-xs text-muted-foreground">{t("Left vs right spring-eye distance. Max difference 5 mm.")}</p>
             <div className="grid grid-cols-2 gap-3">
               <NumberField
-                label="Left"
+                label={t("Left")}
                 unit="mm"
                 help="tape"
                 value={s.tapeLeft}
                 onChange={(v) => setSteering((st) => void (st.tapeLeft = v))}
               />
               <NumberField
-                label="Right"
+                label={t("Right")}
                 unit="mm"
                 help="tape"
                 value={s.tapeRight}

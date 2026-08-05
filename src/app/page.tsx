@@ -29,9 +29,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useI18n } from "@/lib/i18n";
+import { LangToggle } from "@/components/lang-toggle";
 
 export default function HomePage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const jobs = useLiveQuery(() => db.jobs.orderBy("updatedAt").reverse().toArray(), []);
 
@@ -59,7 +62,7 @@ export default function HomePage() {
   async function loadDemo() {
     const job = makeDemoJob();
     await saveJob(job);
-    toast.success("Demo measurement created");
+    toast.success(t("Demo measurement created"));
     router.push(`/job/${job.id}`);
   }
 
@@ -67,15 +70,18 @@ export default function HomePage() {
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
       <AppHeader
         title="TruckAlign"
-        subtitle="JOSAM AM39 alignment"
+        subtitle={t("JOSAM AM39 alignment")}
         right={
-          <Link
-            href="/specs"
-            className="grid size-9 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Spec profiles"
-          >
-            <SlidersHorizontal className="size-5" />
-          </Link>
+          <div className="flex items-center gap-2">
+            <LangToggle />
+            <Link
+              href="/specs"
+              className="grid size-9 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label={t("Spec profiles")}
+            >
+              <SlidersHorizontal className="size-5" />
+            </Link>
+          </div>
         }
       />
 
@@ -85,7 +91,7 @@ export default function HomePage() {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search reg no, owner, type…"
+            placeholder={t("Search reg no, owner, type…")}
             className="h-11 pl-9"
           />
         </div>
@@ -116,28 +122,29 @@ export default function HomePage() {
 }
 
 function NewJobDialog({ onPick }: { onPick: (t: VehicleType) => void }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button size="lg" className="h-12 w-full text-base" />}>
-        <Plus className="size-5" /> New measurement
+        <Plus className="size-5" /> {t("New measurement")}
       </DialogTrigger>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>What are you measuring?</DialogTitle>
-          <DialogDescription>Pick the vehicle so the right report is used.</DialogDescription>
+          <DialogTitle>{t("What are you measuring?")}</DialogTitle>
+          <DialogDescription>{t("Pick the vehicle so the right report is used.")}</DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3 pt-1">
           <TypeCard
             icon={<Truck className="size-7" />}
-            label="Truck"
-            hint="Steering front axle + up to 2 more"
+            label={t("Truck")}
+            hint={t("Steering front axle + up to 2 more")}
             onClick={() => onPick("truck")}
           />
           <TypeCard
             icon={<Container className="size-7" />}
-            label="Trailer"
-            hint="Up to 4 axles"
+            label={t("Trailer")}
+            hint={t("Up to 4 axles")}
             onClick={() => onPick("trailer")}
           />
         </div>
@@ -170,8 +177,9 @@ function TypeCard({
 }
 
 function JobRow({ job, onDelete }: { job: Job; onDelete: () => void }) {
+  const { t } = useI18n();
   const Icon = job.vehicleType === "truck" ? Truck : Container;
-  const title = job.header.regNo || job.header.type || "Untitled vehicle";
+  const title = job.header.regNo || job.header.type || t("Untitled vehicle");
   return (
     <div className="group flex items-center gap-3 rounded-lg border bg-card p-3">
       <Link href={`/job/${job.id}`} className="flex min-w-0 flex-1 items-center gap-3">
@@ -181,23 +189,23 @@ function JobRow({ job, onDelete }: { job: Job; onDelete: () => void }) {
         <span className="min-w-0 flex-1">
           <span className="block truncate font-medium">{title}</span>
           <span className="block truncate text-xs text-muted-foreground">
-            {job.axles.length} axles · {fmtDate(job.header.date || job.updatedAt)}
+            {job.axles.length} {t("axles")} · {fmtDate(job.header.date || job.updatedAt)}
             {job.header.owner ? ` · ${job.header.owner}` : ""}
           </span>
         </span>
       </Link>
       <DropdownMenu>
         <DropdownMenuTrigger
-          render={<Button variant="ghost" size="icon" className="size-8 shrink-0" aria-label="Actions" />}
+          render={<Button variant="ghost" size="icon" className="size-8 shrink-0" aria-label={t("Actions")} />}
         >
           <MoreVertical className="size-4" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem render={<Link href={`/job/${job.id}/report`} />}>
-            <FileText className="size-4" /> Open report
+            <FileText className="size-4" /> {t("Open report")}
           </DropdownMenuItem>
           <DropdownMenuItem variant="destructive" onClick={onDelete}>
-            <Trash2 className="size-4" /> Delete
+            <Trash2 className="size-4" /> {t("Delete")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -216,17 +224,20 @@ function ListSkeleton() {
 }
 
 function EmptyState({ hasJobs, onDemo }: { hasJobs: boolean; onDemo: () => void }) {
+  const { t } = useI18n();
   return (
     <div className={cn("rounded-lg border border-dashed bg-card/50 p-8 text-center")}>
-      <p className="font-medium">{hasJobs ? "No matches" : "No measurements yet"}</p>
+      <p className="font-medium">{hasJobs ? t("No matches") : t("No measurements yet")}</p>
       <p className="mt-1 text-sm text-muted-foreground">
         {hasJobs
-          ? "Try a different search."
-          : "Start a new measurement to record axle readings and build a report — or load a demo to see how it works."}
+          ? t("Try a different search.")
+          : t(
+              "Start a new measurement to record axle readings and build a report — or load a demo to see how it works.",
+            )}
       </p>
       {!hasJobs && (
         <Button variant="outline" className="mt-4" onClick={onDemo}>
-          <Sparkles className="size-4" /> Load demo measurement
+          <Sparkles className="size-4" /> {t("Load demo measurement")}
         </Button>
       )}
     </div>

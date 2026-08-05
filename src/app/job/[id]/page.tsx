@@ -16,12 +16,14 @@ import { ReviewStep } from "@/components/editor/review-step";
 import { VerdictDot } from "@/components/verdict";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 type StepKind = { kind: "setup" } | { kind: "axle"; index: number } | { kind: "review" };
 
 export default function JobEditorPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
+  const { t } = useI18n();
   const { job, loading, update } = useJobEditor(id);
   const specs = useLiveQuery(() => db.specs.toArray(), []) ?? [];
   const [step, setStep] = useState(0);
@@ -48,7 +50,7 @@ export default function JobEditorPage() {
   if (loading) {
     return (
       <div className="mx-auto w-full max-w-md flex-1">
-        <AppHeader title="Loading…" back="/" />
+        <AppHeader title={t("Loading…")} back="/" />
         <div className="space-y-3 p-4">
           {[0, 1, 2].map((i) => (
             <div key={i} className="h-24 animate-pulse rounded-lg border bg-card" />
@@ -61,11 +63,11 @@ export default function JobEditorPage() {
   if (!job || !computed) {
     return (
       <div className="mx-auto w-full max-w-md flex-1">
-        <AppHeader title="Not found" back="/" />
+        <AppHeader title={t("Not found")} back="/" />
         <div className="p-8 text-center">
-          <p className="font-medium">This measurement no longer exists.</p>
+          <p className="font-medium">{t("This measurement no longer exists.")}</p>
           <Button variant="outline" className="mt-4" render={<Link href="/" />}>
-            Back to measurements
+            {t("Back to measurements")}
           </Button>
         </div>
       </div>
@@ -79,22 +81,22 @@ export default function JobEditorPage() {
 
   const stepLabel =
     current.kind === "setup"
-      ? "Setup"
+      ? t("Setup")
       : current.kind === "review"
-        ? "Review"
-        : `Axle ${current.index + 1}${job.axles[current.index].isSteering ? " · steering" : ""}`;
+        ? t("Review")
+        : `${t("Axle")} ${current.index + 1}${job.axles[current.index].isSteering ? ` · ${t("steering")}` : ""}`;
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col pb-24">
       <AppHeader
-        title={job.header.regNo || job.header.type || "New measurement"}
+        title={job.header.regNo || job.header.type || t("New measurement")}
         subtitle={stepLabel}
         back="/"
         right={
           <Link
             href={`/job/${job.id}/report`}
             className="grid size-9 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Report"
+            aria-label={t("Report")}
           >
             <FileText className="size-5" />
           </Link>
@@ -134,15 +136,15 @@ export default function JobEditorPage() {
             disabled={isFirst}
             onClick={() => setStep((s) => Math.max(0, s - 1))}
           >
-            <ChevronLeft className="size-4" /> Back
+            <ChevronLeft className="size-4" /> {t("Back")}
           </Button>
           {isLast ? (
             <Button className="flex-1" render={<Link href={`/job/${job.id}/report`} />}>
-              <FileText className="size-4" /> Report
+              <FileText className="size-4" /> {t("Report")}
             </Button>
           ) : (
             <Button className="flex-1" onClick={() => setStep((s) => Math.min(steps.length - 1, s + 1))}>
-              Next <ChevronRight className="size-4" />
+              {t("Next")} <ChevronRight className="size-4" />
             </Button>
           )}
         </div>
@@ -162,12 +164,13 @@ function StepDots({
   statusFor: (s: StepKind) => import("@/lib/verdict").VerdictStatus | undefined;
   onSelect: (i: number) => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="flex items-center gap-1.5 overflow-x-auto border-b bg-card px-4 py-2">
       {steps.map((s, i) => {
         const status = statusFor(s);
         const label =
-          s.kind === "setup" ? "Setup" : s.kind === "review" ? "Review" : `A${s.index + 1}`;
+          s.kind === "setup" ? t("Setup") : s.kind === "review" ? t("Review") : `A${s.index + 1}`;
         const active = i === current;
         return (
           <button

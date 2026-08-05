@@ -11,9 +11,12 @@ import { Am39Report, SHEET_W, SHEET_H } from "@/components/report/am39-report";
 import { ScaledSheet } from "@/components/report/scaled-sheet";
 import { ScaleStrip } from "@/components/app-header";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n";
+import { LangToggle } from "@/components/lang-toggle";
 
 export default function ReportPage() {
   const { id } = useParams<{ id: string }>();
+  const { t, lang } = useI18n();
   const [job, setJob] = useState<Job | null | undefined>(undefined);
   const [spec, setSpec] = useState<SpecProfile | undefined>();
 
@@ -32,14 +35,14 @@ export default function ReportPage() {
   const computed = useMemo(() => (job ? computeJob(job, spec) : null), [job, spec]);
 
   if (job === undefined) {
-    return <div className="p-8 text-center text-muted-foreground">Loading report…</div>;
+    return <div className="p-8 text-center text-muted-foreground">{t("Loading…")}</div>;
   }
   if (!job || !computed) {
     return (
       <div className="p-8 text-center">
-        <p className="font-medium">Report not found.</p>
+        <p className="font-medium">{t("Report not found.")}</p>
         <Button variant="outline" className="mt-4" render={<Link href="/" />}>
-          Back to measurements
+          {t("Back to measurements")}
         </Button>
       </div>
     );
@@ -53,18 +56,19 @@ export default function ReportPage() {
           <Link
             href={`/job/${job.id}`}
             className="-ml-2 grid size-9 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Back to editor"
+            aria-label={t("Back")}
           >
             <ChevronLeft className="size-5" />
           </Link>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-base font-semibold">AM39 report</h1>
+            <h1 className="truncate text-base font-semibold">{t("AM39 report")}</h1>
             <p className="truncate text-xs text-muted-foreground">
-              {job.header.regNo || job.header.type || "Untitled"} · {job.vehicleType}
+              {job.header.regNo || job.header.type || t("Untitled vehicle")} · {t(job.vehicleType === "truck" ? "Truck" : "Trailer")}
             </p>
           </div>
+          <LangToggle />
           <Button onClick={() => window.print()}>
-            <Printer className="size-4" /> Print / PDF
+            <Printer className="size-4" /> {t("Print / PDF")}
           </Button>
         </div>
         <ScaleStrip />
@@ -72,11 +76,12 @@ export default function ReportPage() {
 
       <div className="mx-auto w-full max-w-2xl flex-1 p-3 sm:p-6">
         <ScaledSheet width={SHEET_W} height={SHEET_H}>
-          <Am39Report job={job} computed={computed} spec={spec} />
+          <Am39Report job={job} computed={computed} lang={lang} />
         </ScaledSheet>
         <p className="no-print mt-3 text-center text-xs text-muted-foreground">
-          Tip: in the print dialog choose “Save as PDF”. Colours must be enabled to keep the pass/fail
-          shading.
+          {t(
+            "Tip: in the print dialog choose “Save as PDF”. Colours must be enabled to keep the pass/fail shading.",
+          )}
         </p>
       </div>
     </div>

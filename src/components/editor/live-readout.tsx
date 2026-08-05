@@ -3,24 +3,27 @@ import type { SpecProfile } from "@/lib/types";
 import { Gauge } from "@/components/gauge";
 import { VerdictBadge } from "@/components/verdict";
 import { fmtMmM, fmtSigned, toeLabel, sideLabel } from "@/lib/format";
+import { useI18n } from "@/lib/i18n";
 
 /** Live toe & out-of-square readout for one axle, with the scale gauges. */
 export function LiveReadout({ axle, spec }: { axle: AxleComputed; spec?: SpecProfile }) {
+  const { t } = useI18n();
   return (
     <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
       <div className="grid grid-cols-2 gap-3 text-center">
-        <Metric label="Left C/Dm" value={fmtMmM(axle.cLeft)} />
-        <Metric label="Right C/Dm" value={fmtMmM(axle.cRight)} />
+        <Metric label={t("Left C/Dm")} value={fmtMmM(axle.cLeft)} />
+        <Metric label={t("Right C/Dm")} value={fmtMmM(axle.cRight)} />
       </div>
 
       <div className="space-y-1">
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium">
-            Toe {axle.toe !== undefined && <span className="text-muted-foreground">· {toeLabel(axle.toeKind)}</span>}
+            {t("Toe")}{" "}
+            {axle.toe !== undefined && <span className="text-muted-foreground">· {t(toeLabel(axle.toeKind))}</span>}
           </span>
           <div className="flex items-center gap-2">
-            <span className="font-mono text-sm tabular-nums">{fmtMmM(axle.toe)}</span>
-            <VerdictBadge status={axle.toeVerdict.status} />
+            <span className="font-mono text-sm tabular-nums">{fmtMmM(axle.toe, 2)}</span>
+            <VerdictBadge status={axle.toeVerdict.status} label={verdictLabel(t, axle.toeVerdict.status)} />
           </div>
         </div>
         <Gauge
@@ -28,20 +31,20 @@ export function LiveReadout({ axle, spec }: { axle: AxleComputed; spec?: SpecPro
           min={spec?.toe.min}
           max={spec?.toe.max}
           status={axle.toeVerdict.status}
-          leftLabel="toe-out"
-          rightLabel="toe-in"
+          leftLabel={t("toe-out")}
+          rightLabel={t("toe-in")}
         />
       </div>
 
       <div className="space-y-1">
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium">
-            Out of square{" "}
-            {axle.oos !== undefined && <span className="text-muted-foreground">· {sideLabel(axle.oosSide)}</span>}
+            {t("Out of square")}{" "}
+            {axle.oos !== undefined && <span className="text-muted-foreground">· {t(sideLabel(axle.oosSide))}</span>}
           </span>
           <div className="flex items-center gap-2">
-            <span className="font-mono text-sm tabular-nums">{fmtSigned(axle.oos)} mm/m</span>
-            <VerdictBadge status={axle.oosVerdict.status} />
+            <span className="font-mono text-sm tabular-nums">{fmtSigned(axle.oos, 2)} mm/m</span>
+            <VerdictBadge status={axle.oosVerdict.status} label={verdictLabel(t, axle.oosVerdict.status)} />
           </div>
         </div>
         <Gauge
@@ -49,12 +52,16 @@ export function LiveReadout({ axle, spec }: { axle: AxleComputed; spec?: SpecPro
           min={spec ? -spec.outOfSquareMax : undefined}
           max={spec ? spec.outOfSquareMax : undefined}
           status={axle.oosVerdict.status}
-          leftLabel="right"
-          rightLabel="left"
+          leftLabel={t("right")}
+          rightLabel={t("left")}
         />
       </div>
     </div>
   );
+}
+
+function verdictLabel(t: (s: string) => string, status: "pass" | "fail" | "unknown") {
+  return status === "pass" ? t("OK") : status === "fail" ? t("Out") : "—";
 }
 
 function Metric({ label, value }: { label: string; value: string }) {

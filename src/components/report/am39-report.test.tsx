@@ -45,7 +45,7 @@ describe("Am39Report renders to static markup", () => {
   const spec = DEFAULT_SPECS.find((s) => s.vehicleType === "truck");
   const job = truckJob();
   const computed = computeJob(job, spec);
-  const html = renderToStaticMarkup(<Am39Report job={job} computed={computed} spec={spec} />);
+  const html = renderToStaticMarkup(<Am39Report job={job} computed={computed} />);
 
   it("does not throw and includes the header + JOSAM mark", () => {
     expect(html).toContain("JOSAM");
@@ -87,7 +87,7 @@ describe("Am39Report trailer variant (two ruler blocks, no turn diagram)", () =>
     })),
   };
   const computed = computeJob(job, spec);
-  const html = renderToStaticMarkup(<Am39Report job={job} computed={computed} spec={spec} />);
+  const html = renderToStaticMarkup(<Am39Report job={job} computed={computed} />);
 
   it("renders four axles across two blocks (A1..A4, B1..B4)", () => {
     for (const tag of ["A1", "A2", "A3", "A4", "B1", "B2", "B3", "B4"]) {

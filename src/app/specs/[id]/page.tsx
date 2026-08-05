@@ -25,8 +25,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { useI18n } from "@/lib/i18n";
 
 export default function SpecEditorPage() {
+  const { t } = useI18n();
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [spec, setSpec] = useState<SpecProfile | null | undefined>(undefined);
@@ -50,18 +52,18 @@ export default function SpecEditorPage() {
   if (spec === undefined) {
     return (
       <div className="mx-auto w-full max-w-md">
-        <AppHeader title="Loading…" back="/specs" />
+        <AppHeader title={t("Loading…")} back="/specs" />
       </div>
     );
   }
   if (!spec) {
     return (
       <div className="mx-auto w-full max-w-md">
-        <AppHeader title="Not found" back="/specs" />
+        <AppHeader title={t("Not found")} back="/specs" />
         <div className="p-8 text-center">
-          <p className="font-medium">This profile no longer exists.</p>
+          <p className="font-medium">{t("This profile no longer exists.")}</p>
           <Button variant="outline" className="mt-4" render={<Link href="/specs" />}>
-            Back to profiles
+            {t("Back to profiles")}
           </Button>
         </div>
       </div>
@@ -75,22 +77,22 @@ export default function SpecEditorPage() {
     const copy = newSpecProfile(spec.vehicleType);
     Object.assign(copy, { ...spec, id: copy.id, name: `${spec.name} (copy)`, builtIn: false });
     await saveSpec(copy);
-    toast.success("Profile duplicated");
+    toast.success(t("Profile duplicated"));
     router.push(`/specs/${copy.id}`);
   }
 
   async function remove() {
     if (!spec) return;
     await deleteSpec(spec.id);
-    toast.success("Profile deleted");
+    toast.success(t("Profile deleted"));
     router.push("/specs");
   }
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
       <AppHeader
-        title={spec.name || "Untitled profile"}
-        subtitle={`${spec.vehicleType} profile`}
+        title={spec.name || t("Untitled profile")}
+        subtitle={t(isTruck ? "Truck" : "Trailer")}
         back="/specs"
         right={
           <Button variant="ghost" size="icon" className="size-9" aria-label="Duplicate" onClick={duplicate}>
@@ -102,13 +104,14 @@ export default function SpecEditorPage() {
       <div className="space-y-6 px-4 py-4">
         {spec.builtIn && (
           <p className="rounded-md border border-warn/40 bg-warn/10 p-3 text-xs text-foreground">
-            This is a built-in profile with generic values. Duplicate it and enter your manufacturer’s
-            exact figures.
+            {t(
+              "A profile holds the allowed range for each measurement. Duplicate a built-in and enter your manufacturer’s figures.",
+            )}
           </p>
         )}
 
         <div className="space-y-1.5">
-          <Label className="text-sm">Profile name</Label>
+          <Label className="text-sm">{t("Profile name")}</Label>
           <Input
             value={spec.name}
             onChange={(e) => update((d) => void (d.name = e.target.value))}
@@ -117,28 +120,28 @@ export default function SpecEditorPage() {
           />
         </div>
 
-        <Section title="All axles">
+        <Section title={t("All axles")}>
           <RangeField
-            label="Toe"
+            label={t("Toe")}
             unit="mm/m"
             hint="+ = toe-in, − = toe-out"
             value={spec.toe}
             onChange={(r) => update((d) => void (d.toe = r))}
           />
           <RangeField
-            label="Camber"
+            label={t("Camber")}
             unit="°"
             value={spec.camber}
             onChange={(r) => update((d) => void (d.camber = r))}
           />
           <NumberField
-            label="Out of square (max)"
+            label={`${t("Out of square")} (max)`}
             unit="mm/m"
             value={spec.outOfSquareMax}
             onChange={(v) => update((d) => void (d.outOfSquareMax = v ?? 0))}
           />
           <NumberField
-            label="Axle parallelism (max)"
+            label={`${t("Axle parallelism")} (max)`}
             unit="mm/m"
             value={spec.parallelismMax}
             onChange={(v) => update((d) => void (d.parallelismMax = v ?? 0))}
@@ -146,37 +149,37 @@ export default function SpecEditorPage() {
         </Section>
 
         {isTruck && (
-          <Section title="Steering axle">
+          <Section title={t("Steering axle")}>
             <RangeField
-              label="Caster"
+              label={t("Caster")}
               unit="°"
               value={spec.caster}
               onChange={(r) => update((d) => void (d.caster = r))}
             />
-            <RangeField label="KPI" unit="°" value={spec.kpi} onChange={(r) => update((d) => void (d.kpi = r))} />
+            <RangeField label={t("KPI")} unit="°" value={spec.kpi} onChange={(r) => update((d) => void (d.kpi = r))} />
             <RangeField
-              label="Max turn"
+              label={t("Maximum turn")}
               unit="°"
               value={spec.maxTurn}
               onChange={(r) => update((d) => void (d.maxTurn = r))}
             />
             <NumberField
-              label="Toe-out on turn — max side difference"
+              label={t("Toe-out on turn Δ")}
               unit="°"
               value={spec.tootDiffMax}
               onChange={(v) => update((d) => void (d.tootDiffMax = v ?? 0))}
             />
             <NumberField
-              label="Steering-box centering (max)"
+              label={`${t("Steering-box centering")} (max)`}
               unit="mm/m"
-              hint="Manual limit: 1°/m ≈ 17.4 mm/m"
+              hint="1°/m ≈ 17.4 mm/m"
               value={spec.steeringBoxMaxMmPerM}
               onChange={(v) => update((d) => void (d.steeringBoxMaxMmPerM = v ?? 0))}
             />
             <NumberField
-              label="Out of square by tape (max)"
+              label={`${t("Out of square (tape)")} (max)`}
               unit="mm"
-              hint="Manual limit: 5 mm"
+              hint="5 mm"
               value={spec.tapeDiffMax}
               onChange={(v) => update((d) => void (d.tapeDiffMax = v ?? 0))}
             />
@@ -186,23 +189,21 @@ export default function SpecEditorPage() {
         <Separator />
 
         <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">Changes save automatically.</span>
+          <span className="text-xs text-muted-foreground">{t("Changes save automatically.")}</span>
           {!spec.builtIn && (
             <Dialog>
               <DialogTrigger render={<Button variant="destructive" size="sm" />}>
-                <Trash2 className="size-4" /> Delete
+                <Trash2 className="size-4" /> {t("Delete")}
               </DialogTrigger>
               <DialogContent className="max-w-sm">
                 <DialogHeader>
-                  <DialogTitle>Delete this profile?</DialogTitle>
-                  <DialogDescription>
-                    Jobs already using it keep their results. This can’t be undone.
-                  </DialogDescription>
+                  <DialogTitle>{t("Delete this profile?")}</DialogTitle>
+                  <DialogDescription>{t("Jobs already using it keep their results. This can’t be undone.")}</DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
-                  <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+                  <DialogClose render={<Button variant="outline" />}>{t("Cancel")}</DialogClose>
                   <Button variant="destructive" onClick={remove}>
-                    Delete
+                    {t("Delete")}
                   </Button>
                 </DialogFooter>
               </DialogContent>

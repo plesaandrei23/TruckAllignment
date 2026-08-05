@@ -2,11 +2,13 @@
 
 import { HelpCircle } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { HELP, type HelpKey } from "@/lib/help";
+import { helpFor, type HelpKey } from "@/lib/help";
+import { useI18n } from "@/lib/i18n";
 
 /** A tap-friendly "?" that explains a field, using text from the JOSAM manual. */
 export function FieldHelp({ topic }: { topic: HelpKey }) {
-  const help = HELP[topic];
+  const { lang } = useI18n();
+  const help = helpFor(lang, topic);
   return (
     <Popover>
       <PopoverTrigger
