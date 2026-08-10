@@ -630,7 +630,9 @@ function AxleRow({ axle, job, y, h, tr }: { axle: AxleComputed; job: Job; y: num
         <text x={centreX + 8} y={y + 50} fontSize={6.5} fill={GREY}>
           {tr("Result")}:{" "}
           <tspan fontWeight={700} fill={vfill(axle.toeVerdict.status).text}>
-            {tr(axle.toeKind === "toe-in" ? "TOE-IN" : axle.toeKind === "toe-out" ? "TOE-OUT" : "EQUAL")}
+            {axle.toeKind === "unknown"
+              ? "—"
+              : tr(axle.toeKind === "toe-in" ? "TOE-IN" : axle.toeKind === "toe-out" ? "TOE-OUT" : "EQUAL")}
           </tspan>
         </text>
 
@@ -781,7 +783,7 @@ function DBox({ x, y, d, top, bot }: { x: number; y: number; d: number; top: str
         {bot}
       </text>
       <text x={x + w - 6} y={y + 19} fontSize={13} fontWeight={700} fill={INK} textAnchor="end" style={{ fontFamily: "var(--font-geist-mono, monospace)" }}>
-        {d} m
+        {d > 0 ? `${d} m` : "— m"}
       </text>
       <text x={x + w / 2} y={y + 11} fontSize={8} fill={INK} textAnchor="middle">
         = D

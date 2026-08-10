@@ -59,6 +59,10 @@ const RO: Record<string, string> = {
   "Distance between scales (D)": "Distanța dintre rigle (D)",
   "Distance between the front and rear frame gauges. Shared by every axle.":
     "Distanța dintre riglele față și spate ale cadrului. Comună tuturor axelor.",
+  "Nothing is computed until D is set. Decimals are fine — 6.5 or 6,5.":
+    "Nu se calculează nimic până nu setezi D. Zecimalele sunt acceptate — 6.5 sau 6,5.",
+  "Set the distance D on the Setup step to see computed results.":
+    "Setează distanța D la pasul Configurare pentru a vedea rezultatele calculate.",
   "Tolerance profile": "Profil de toleranță",
   "Profile": "Profil",
   "Choose a spec profile": "Alege un profil",
@@ -92,6 +96,7 @@ const RO: Record<string, string> = {
   "Out of square (tape)": "Abatere (ruletă)",
   "Left vs right spring-eye distance. Max difference 5 mm.":
     "Distanța ochi-arc stânga vs dreapta. Diferență maximă 5 mm.",
+  "Enter a number, e.g. 6.5": "Introdu un număr, de ex. 6,5",
   "Left": "Stânga",
   "Right": "Dreapta",
   "Left · reference": "Stânga · referință",
@@ -140,6 +145,10 @@ const RO: Record<string, string> = {
   "Not found": "Negăsit",
   "This measurement no longer exists.": "Această măsurătoare nu mai există.",
   "Back to measurements": "Înapoi la măsurători",
+  "Something went wrong": "A apărut o eroare",
+  "Your measurements are saved on this device. Try again, or go back and reopen it.":
+    "Măsurătorile sunt salvate pe acest dispozitiv. Încearcă din nou sau întoarce-te și redeschide-o.",
+  "Try again": "Reîncearcă",
 
   // report toolbar
   "AM39 report": "Raport AM39",

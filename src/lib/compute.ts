@@ -86,6 +86,19 @@ export interface JobComputed {
   status: VerdictStatus;
 }
 
+/**
+ * D is only usable once the technician has entered a real distance. Until then
+ * (blank field, 0, mid-typing) every derived value is simply "not known yet" —
+ * `rollingDirection` would throw, and a half-filled form must never crash.
+ */
+function usableD(d: number): boolean {
+  return Number.isFinite(d) && d > 0;
+}
+
+function usableReading(v: number | undefined): v is number {
+  return v !== undefined && Number.isFinite(v);
+}
+
 function computeWheel(
   wheel: WheelReading,
   spec: SpecProfile | undefined,
@@ -93,7 +106,7 @@ function computeWheel(
   d: number,
 ): WheelComputed {
   const rolling =
-    wheel.A !== undefined && wheel.B !== undefined
+    usableD(d) && usableReading(wheel.A) && usableReading(wheel.B)
       ? rollingDirection(wheel.A, wheel.B, d)
       : undefined;
   const camberDeg = wheel.camber ? angleToDecimal(wheel.camber) : undefined;
@@ -131,7 +144,7 @@ function computeSteering(
       : undefined;
 
   const steeringBoxDev =
-    s.steeringBoxA !== undefined && s.steeringBoxB !== undefined
+    usableD(d) && usableReading(s.steeringBoxA) && usableReading(s.steeringBoxB)
       ? steeringBoxDeviation(s.steeringBoxA, s.steeringBoxB, d)
       : undefined;
 

@@ -31,6 +31,12 @@ export function AxleStep({ job, index, computed, spec, update }: AxleStepProps) 
         <WheelCard title={t("Right wheel")} code={`C${cR}`} job={job} index={index} side="right" update={update} />
       </div>
 
+      {!(job.D > 0) && (
+        <p className="rounded-md border border-warn/40 bg-warn/10 p-3 text-xs">
+          {t("Set the distance D on the Setup step to see computed results.")}
+        </p>
+      )}
+
       <LiveReadout axle={computed} spec={spec} />
 
       <CamberSection job={job} index={index} update={update} />

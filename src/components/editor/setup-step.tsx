@@ -90,10 +90,16 @@ export function SetupStep({ job, specs, update }: SetupStepProps) {
           label={t("Distance between scales (D)")}
           unit="m"
           help="D"
+          placeholder="6.5"
           hint={t("Distance between the front and rear frame gauges. Shared by every axle.")}
-          value={job.D}
+          value={job.D > 0 ? job.D : undefined}
           onChange={(v) => update((d) => void (d.D = v ?? 0))}
         />
+        {!(job.D > 0) && (
+          <p className="rounded-md border border-warn/40 bg-warn/10 px-2.5 py-2 text-xs">
+            {t("Nothing is computed until D is set. Decimals are fine — 6.5 or 6,5.")}
+          </p>
+        )}
         <div className="space-y-1.5">
           <Label className="text-sm">{t("Profile")}</Label>
           <Select

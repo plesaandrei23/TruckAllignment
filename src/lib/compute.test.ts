@@ -67,3 +67,22 @@ describe("computeJob (integration with the manual's C3..C6 example)", () => {
     expect(result.axles[1].wheelNo).toEqual({ left: 3, right: 4 });
   });
 });
+
+describe("computeJob with an unusable D", () => {
+  // A half-filled form must never throw: D is 0 until the technician types it,
+  // and while typing "6." the field is momentarily empty.
+  it.each([0, Number.NaN, -1])("returns unknown results instead of throwing (D = %s)", (d) => {
+    const job = { ...manualTrailer(), D: d };
+    const result = computeJob(job, DEFAULT_SPECS[0]);
+    expect(result.axles[0].cLeft).toBeUndefined();
+    expect(result.axles[0].toe).toBeUndefined();
+    expect(result.axles[0].toeKind).toBe("unknown");
+    expect(result.parallelism[0].value).toBeUndefined();
+    expect(result.status).toBe("unknown");
+  });
+
+  it("computes again once a decimal D is entered", () => {
+    const result = computeJob({ ...manualTrailer(), D: 6.5 }, DEFAULT_SPECS[0]);
+    expect(result.axles[0].cLeft).toBeCloseTo((89 - 113) / 6.5, 10);
+  });
+});
