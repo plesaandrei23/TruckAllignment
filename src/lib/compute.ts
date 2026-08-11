@@ -7,6 +7,8 @@
 
 import {
   rollingDirection,
+  scaleDifference,
+  sideDifference,
   toe as toeSum,
   toeKind as classifyToe,
   outOfSquare,
@@ -29,6 +31,8 @@ import {
 } from "./verdict";
 
 export interface WheelComputed {
+  /** Raw scale difference A − B (mm), before dividing by D. */
+  diff?: number;
   /** Rolling direction C/Dm (mm/m). */
   rolling?: number;
   camberDeg?: number;
@@ -57,6 +61,8 @@ export interface AxleComputed {
   index: number;
   isSteering: boolean;
   wheelNo: { left: number; right: number };
+  /** Left (A−B) minus right (A−B), in mm. + = the left side reads more. */
+  sideDiff?: number;
   cLeft?: number;
   cRight?: number;
   toe?: number;
@@ -105,14 +111,15 @@ function computeWheel(
   isSteering: boolean,
   d: number,
 ): WheelComputed {
-  const rolling =
-    usableD(d) && usableReading(wheel.A) && usableReading(wheel.B)
-      ? rollingDirection(wheel.A, wheel.B, d)
-      : undefined;
+  const bothScales = usableReading(wheel.A) && usableReading(wheel.B);
+  // A − B needs no D, so it shows as soon as both plaques are keyed in.
+  const diff = bothScales ? scaleDifference(wheel.A!, wheel.B!) : undefined;
+  const rolling = bothScales && usableD(d) ? rollingDirection(wheel.A!, wheel.B!, d) : undefined;
   const camberDeg = wheel.camber ? angleToDecimal(wheel.camber) : undefined;
   const casterDeg = wheel.caster ? angleToDecimal(wheel.caster) : undefined;
   const kpiDeg = wheel.kpi ? angleToDecimal(wheel.kpi) : undefined;
   return {
+    diff,
     rolling,
     camberDeg,
     camberVerdict: verdictRange(camberDeg, spec?.camber),
@@ -176,6 +183,9 @@ function computeAxle(
   const left = computeWheel(axle.left, spec, axle.isSteering, d);
   const right = computeWheel(axle.right, spec, axle.isSteering, d);
 
+  const sideDiff =
+    left.diff !== undefined && right.diff !== undefined ? sideDifference(left.diff, right.diff) : undefined;
+
   const cLeft = left.rolling;
   const cRight = right.rolling;
   const bothWheels = cLeft !== undefined && cRight !== undefined;
@@ -213,6 +223,7 @@ function computeAxle(
     index,
     isSteering: axle.isSteering,
     wheelNo: wheelNumbers(index),
+    sideDiff,
     cLeft,
     cRight,
     toe,

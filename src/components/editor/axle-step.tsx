@@ -9,6 +9,7 @@ import { NumberField, AngleField } from "@/components/fields";
 import { LiveReadout } from "./live-readout";
 import { Switch } from "@/components/ui/switch";
 import { SteeringWheel } from "@/components/icons";
+import { fmtSigned } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
 
 interface AxleStepProps {
@@ -27,8 +28,24 @@ export function AxleStep({ job, index, computed, spec, update }: AxleStepProps) 
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <WheelCard title={t("Left wheel")} code={`C${cL}`} job={job} index={index} side="left" update={update} />
-        <WheelCard title={t("Right wheel")} code={`C${cR}`} job={job} index={index} side="right" update={update} />
+        <WheelCard
+          title={t("Left wheel")}
+          code={`C${cL}`}
+          job={job}
+          index={index}
+          side="left"
+          diff={computed.left.diff}
+          update={update}
+        />
+        <WheelCard
+          title={t("Right wheel")}
+          code={`C${cR}`}
+          job={job}
+          index={index}
+          side="right"
+          diff={computed.right.diff}
+          update={update}
+        />
       </div>
 
       {!(job.D > 0) && (
@@ -46,13 +63,14 @@ export function AxleStep({ job, index, computed, spec, update }: AxleStepProps) 
   );
 }
 
-/** Minimal wheel card — only the two scale readings the device prints. */
+/** Minimal wheel card — the two scale readings the device prints, plus A − B. */
 function WheelCard({
   title,
   code,
   job,
   index,
   side,
+  diff,
   update,
 }: {
   title: string;
@@ -60,6 +78,7 @@ function WheelCard({
   job: Job;
   index: number;
   side: "left" | "right";
+  diff?: number;
   update: AxleStepProps["update"];
 }) {
   const { t } = useI18n();
@@ -84,6 +103,10 @@ function WheelCard({
         value={wheel.B}
         onChange={(v) => update((d) => void (d.axles[index][side].B = v))}
       />
+      <div className="flex items-center justify-between border-t pt-2.5">
+        <span className="text-xs text-muted-foreground">{t("A − B")}</span>
+        <span className="font-mono text-sm tabular-nums">{fmtSigned(diff, 1)} mm</span>
+      </div>
     </div>
   );
 }

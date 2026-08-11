@@ -47,6 +47,24 @@ export function rollingDirection(a: number, b: number, d: number): number {
 }
 
 /**
+ * Raw scale difference of one wheel in mm: front (A) minus rear (B).
+ *
+ * This is the numerator of the rolling direction, before dividing by D — the
+ * number the technician can check straight off the two plaques.
+ */
+export function scaleDifference(a: number, b: number): number {
+  return a - b;
+}
+
+/**
+ * Difference between the two sides' raw scale differences (mm).
+ * Positive => the left wheel's A−B is the larger of the two.
+ */
+export function sideDifference(leftDiff: number, rightDiff: number): number {
+  return leftDiff - rightDiff;
+}
+
+/**
  * Toe of an axle in mm/m. Positive => toe-in, negative => toe-out.
  * @param cLeft   Rolling direction of the left wheel (mm/m).
  * @param cRight  Rolling direction of the right wheel (mm/m).

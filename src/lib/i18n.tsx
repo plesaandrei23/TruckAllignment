@@ -107,6 +107,8 @@ const RO: Record<string, string> = {
   // live readout / review
   "Left C/Dm": "C/Dm stânga",
   "Right C/Dm": "C/Dm dreapta",
+  "A − B": "A − B",
+  "Left − Right": "Stânga − Dreapta",
   "Toe": "Convergență",
   "toe-out": "divergență",
   "toe-in": "convergență",

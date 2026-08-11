@@ -15,6 +15,14 @@ export function LiveReadout({ axle, spec }: { axle: AxleComputed; spec?: SpecPro
         <Metric label={t("Right C/Dm")} value={fmtMmM(axle.cRight)} />
       </div>
 
+      {/* Raw plaque arithmetic, so the technician can sanity-check the maths. */}
+      <div className="flex items-center justify-between border-y py-2">
+        <span className="text-sm font-medium">
+          {t("Left − Right")} <span className="text-xs text-muted-foreground">({t("A − B")})</span>
+        </span>
+        <span className="font-mono text-sm tabular-nums">{fmtSigned(axle.sideDiff, 1)} mm</span>
+      </div>
+
       <div className="space-y-1">
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium">

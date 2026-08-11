@@ -86,3 +86,36 @@ describe("computeJob with an unusable D", () => {
     expect(result.axles[0].cLeft).toBeCloseTo((89 - 113) / 6.5, 10);
   });
 });
+
+describe("raw scale differences", () => {
+  const result = computeJob(manualTrailer(), DEFAULT_SPECS[0]);
+
+  it("shows A − B per wheel, in mm", () => {
+    // Axle 1: left 89-113 = -24, right 108-96 = +12.
+    expect(result.axles[0].left.diff).toBe(-24);
+    expect(result.axles[0].right.diff).toBe(12);
+    // Axle 2: left 110-92 = +18, right 96-108 = -12.
+    expect(result.axles[1].left.diff).toBe(18);
+    expect(result.axles[1].right.diff).toBe(-12);
+  });
+
+  it("shows the left-vs-right difference of those, in mm", () => {
+    expect(result.axles[0].sideDiff).toBe(-36); // -24 - (+12)
+    expect(result.axles[1].sideDiff).toBe(30); //  +18 - (-12)
+  });
+
+  it("needs no D — A − B is plain plaque arithmetic", () => {
+    const noD = computeJob({ ...manualTrailer(), D: 0 }, DEFAULT_SPECS[0]);
+    expect(noD.axles[0].left.diff).toBe(-24);
+    expect(noD.axles[0].sideDiff).toBe(-36);
+    expect(noD.axles[0].cLeft).toBeUndefined();
+  });
+
+  it("stays undefined until both scales are keyed in", () => {
+    const half = manualTrailer();
+    half.axles[0].right = { A: 108 };
+    const result = computeJob(half, DEFAULT_SPECS[0]);
+    expect(result.axles[0].right.diff).toBeUndefined();
+    expect(result.axles[0].sideDiff).toBeUndefined();
+  });
+});
