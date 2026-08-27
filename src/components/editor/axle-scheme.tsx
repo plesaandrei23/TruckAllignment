@@ -33,9 +33,9 @@ export function AxleScheme({
   dual?: boolean;
   frontLabel: string;
 }) {
-  const w = 92;
-  const h = 196;
-  const axleY = 108;
+  const w = 104;
+  const h = 212;
+  const axleY = 118;
 
   return (
     <svg viewBox={`0 0 ${w} ${h}`} className="h-full w-full" role="presentation">
@@ -59,10 +59,10 @@ export function AxleScheme({
       />
 
       {/* axle beam */}
-      <line x1={18} y1={axleY} x2={w - 18} y2={axleY} className="stroke-muted-foreground/60" strokeWidth={2.5} />
+      <line x1={20} y1={axleY} x2={w - 20} y2={axleY} className="stroke-muted-foreground/60" strokeWidth={2.5} />
 
-      <WheelGroup x={18} y={axleY} deg={tilt(cLeft)} dual={dual} />
-      <WheelGroup x={w - 18} y={axleY} deg={-tilt(cRight)} dual={dual} />
+      <WheelGroup x={20} y={axleY} deg={tilt(cLeft)} dual={dual} />
+      <WheelGroup x={w - 20} y={axleY} deg={-tilt(cRight)} dual={dual} />
     </svg>
   );
 }
@@ -73,8 +73,8 @@ export function AxleScheme({
  * direction leans both wheels the same way the vehicle would steer.
  */
 function WheelGroup({ x, y, deg, dual }: { x: number; y: number; deg: number; dual?: boolean }): ReactNode {
-  const tyreW = dual ? 11 : 15;
-  const tyreH = 56;
+  const tyreW = dual ? 13 : 18;
+  const tyreH = 64;
   const gap = 3;
   const rects = dual
     ? [-(tyreW + gap) / 2, (tyreW + gap) / 2]

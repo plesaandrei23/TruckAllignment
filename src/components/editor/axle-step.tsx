@@ -153,7 +153,7 @@ export function MeasureStep({
       <DistanceRow job={job} update={update} />
 
       {/* Scale readings sit next to the wheel they were taken from. */}
-      <div className="grid grid-cols-[1fr_92px_1fr] items-center gap-2">
+      <div className="grid grid-cols-[1fr_108px_1fr] items-center gap-2">
         <WheelColumn
           job={job}
           index={index}
@@ -164,7 +164,7 @@ export function MeasureStep({
           rolling={computed.left.rolling}
           update={update}
         />
-        <div className="h-[196px] w-full">
+        <div className="h-[212px] w-full">
           <AxleScheme
             cLeft={computed.cLeft}
             cRight={computed.cRight}

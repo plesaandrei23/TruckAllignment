@@ -244,11 +244,14 @@ function StepDots({
   const { t } = useI18n();
   const activeGroup = groupOf(steps[current]);
 
-  // One chip per axle, however many pages that axle has.
-  const groups: { key: string; label: string; first: number; status?: import("@/lib/verdict").VerdictStatus }[] = [];
+  // One chip per axle, however many pages that axle has. Tapping it opens the
+  // measuring page — the screen the job is actually worked on — rather than the
+  // one-off run-out setup that happens to come first in the row.
+  const groups: { key: string; label: string; landing: number; status?: import("@/lib/verdict").VerdictStatus }[] = [];
   steps.forEach((s, i) => {
     const key = groupOf(s);
     if (groups.some((g) => g.key === key)) return;
+    const measureAt = steps.findIndex((x) => groupOf(x) === key && x.kind === "measure");
     groups.push({
       key,
       label:
@@ -259,7 +262,7 @@ function StepDots({
             : s.kind === "finish"
               ? t("Finish")
               : `A${s.index + 1}`,
-      first: i,
+      landing: measureAt >= 0 ? measureAt : i,
       status: "index" in s ? computed.axles[s.index]?.status : undefined,
     });
   });
@@ -271,7 +274,7 @@ function StepDots({
         return (
           <button
             key={g.key}
-            onClick={() => onSelect(g.first)}
+            onClick={() => onSelect(g.landing)}
             className={cn(
               "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
               active
