@@ -63,6 +63,13 @@ const RO: Record<string, string> = {
   "Adjust to": "Reglează la",
   "Run-out": "Bătaie",
   "Measure": "Măsurare",
+  "Angles": "Unghiuri",
+  "Optional. Leave a section off and it is left blank on the report.":
+    "Opțional. Dacă lași o secțiune oprită, rămâne necompletată în raport.",
+  "Done": "Gata",
+  "Sum": "Sumă",
+  "Allowed": "Permis",
+  "this profile permits some toe-out": "acest profil permite puțină divergență",
   "saved": "salvate",
   "Save first reading": "Salvează prima măsurătoare",
   "Save reading after adjustment": "Salvează măsurătoarea după reglaj",

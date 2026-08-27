@@ -11,7 +11,7 @@ import { computeJob } from "@/lib/compute";
 import { defaultSpecId } from "@/lib/defaults";
 import { AppHeader } from "@/components/app-header";
 import { SetupStep } from "@/components/editor/setup-step";
-import { AxleStep } from "@/components/editor/axle-step";
+import { RunoutStep, MeasureStep, AnglesStep, SteeringStep } from "@/components/editor/axle-step";
 import { LogStep } from "@/components/editor/log-step";
 import { DetailsStep } from "@/components/editor/details-step";
 import { ReviewStep } from "@/components/editor/review-step";
@@ -20,11 +20,31 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 
+/**
+ * Every screen in the job, as its own page. An axle contributes several — the
+ * work is done in stages and nothing should have to be scrolled past while a
+ * wheel is on the gauge.
+ */
 type StepKind =
   | { kind: "setup" }
-  | { kind: "axle"; index: number }
+  | { kind: "runout"; index: number }
+  | { kind: "measure"; index: number }
+  | { kind: "angles"; index: number }
+  | { kind: "steering"; index: number }
   | { kind: "log" }
   | { kind: "finish" };
+
+/** Which chip in the top strip a step belongs to. */
+function groupOf(s: StepKind): string {
+  switch (s.kind) {
+    case "setup":
+    case "log":
+    case "finish":
+      return s.kind;
+    default:
+      return `axle-${s.index}`;
+  }
+}
 
 export default function JobEditorPage() {
   const params = useParams<{ id: string }>();
@@ -46,12 +66,16 @@ export default function JobEditorPage() {
 
   const steps: StepKind[] = useMemo(() => {
     if (!job) return [];
-    return [
-      { kind: "setup" },
-      ...job.axles.map((_, i) => ({ kind: "axle", index: i }) as StepKind),
-      { kind: "log" },
-      { kind: "finish" },
-    ];
+    const perAxle = job.axles.flatMap((axle, i) => {
+      const pages: StepKind[] = [
+        { kind: "runout", index: i },
+        { kind: "measure", index: i },
+        { kind: "angles", index: i },
+      ];
+      if (axle.isSteering) pages.push({ kind: "steering", index: i });
+      return pages;
+    });
+    return [{ kind: "setup" }, ...perAxle, { kind: "log" }, { kind: "finish" }];
   }, [job]);
 
   if (loading) {
@@ -86,6 +110,15 @@ export default function JobEditorPage() {
   const isFirst = clamped === 0;
   const isLast = clamped === steps.length - 1;
 
+  const subLabel = (s: StepKind) =>
+    s.kind === "runout"
+      ? t("Run-out")
+      : s.kind === "measure"
+        ? t("Measure")
+        : s.kind === "angles"
+          ? t("Angles")
+          : t("Steering");
+
   const stepLabel =
     current.kind === "setup"
       ? t("Setup")
@@ -93,7 +126,13 @@ export default function JobEditorPage() {
         ? t("Readings")
         : current.kind === "finish"
           ? t("Finish")
-          : `${t("Axle")} ${current.index + 1}${job.axles[current.index].isSteering ? ` · ${t("steering")}` : ""}`;
+          : `${t("Axle")} ${current.index + 1} · ${subLabel(current)}`;
+
+  // The sub-steps of the axle currently being worked on, for the second row.
+  const currentGroup = groupOf(current);
+  const subSteps = steps
+    .map((s, i) => ({ s, i }))
+    .filter(({ s }) => groupOf(s) === currentGroup && "index" in s);
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col pb-24">
@@ -112,21 +151,44 @@ export default function JobEditorPage() {
         }
       />
 
-      <StepDots
-        steps={steps}
-        current={clamped}
-        statusFor={(s) => (s.kind === "axle" ? computed.axles[s.index].status : undefined)}
-        onSelect={setStep}
-      />
+      <StepDots steps={steps} current={clamped} computed={computed} onSelect={setStep} />
+
+      {subSteps.length > 1 && (
+        <div className="flex items-center gap-1 border-b bg-background px-4 py-2">
+          {subSteps.map(({ s, i }, n) => (
+            <button
+              key={i}
+              onClick={() => setStep(i)}
+              className={cn(
+                "flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
+                i === clamped ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/60",
+              )}
+            >
+              <span className="mr-1 text-[10px] opacity-60">{n + 1}</span>
+              {subLabel(s)}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="flex-1 px-4 py-4">
         {current.kind === "setup" && <SetupStep job={job} specs={specs} update={update} />}
-        {current.kind === "axle" && (
-          <AxleStep
+        {current.kind === "runout" && <RunoutStep job={job} index={current.index} update={update} />}
+        {current.kind === "measure" && (
+          <MeasureStep
             job={job}
             index={current.index}
             computed={computed.axles[current.index]}
             spec={spec}
+            update={update}
+          />
+        )}
+        {current.kind === "angles" && <AnglesStep job={job} index={current.index} update={update} />}
+        {current.kind === "steering" && (
+          <SteeringStep
+            job={job}
+            index={current.index}
+            computed={computed.axles[current.index]}
             update={update}
           />
         )}
@@ -171,32 +233,45 @@ export default function JobEditorPage() {
 function StepDots({
   steps,
   current,
-  statusFor,
+  computed,
   onSelect,
 }: {
   steps: StepKind[];
   current: number;
-  statusFor: (s: StepKind) => import("@/lib/verdict").VerdictStatus | undefined;
+  computed: import("@/lib/compute").JobComputed;
   onSelect: (i: number) => void;
 }) {
   const { t } = useI18n();
+  const activeGroup = groupOf(steps[current]);
+
+  // One chip per axle, however many pages that axle has.
+  const groups: { key: string; label: string; first: number; status?: import("@/lib/verdict").VerdictStatus }[] = [];
+  steps.forEach((s, i) => {
+    const key = groupOf(s);
+    if (groups.some((g) => g.key === key)) return;
+    groups.push({
+      key,
+      label:
+        s.kind === "setup"
+          ? t("Setup")
+          : s.kind === "log"
+            ? t("Readings")
+            : s.kind === "finish"
+              ? t("Finish")
+              : `A${s.index + 1}`,
+      first: i,
+      status: "index" in s ? computed.axles[s.index]?.status : undefined,
+    });
+  });
+
   return (
     <div className="flex items-center gap-1.5 overflow-x-auto border-b bg-card px-4 py-2">
-      {steps.map((s, i) => {
-        const status = statusFor(s);
-        const label =
-          s.kind === "setup"
-            ? t("Setup")
-            : s.kind === "log"
-              ? t("Readings")
-              : s.kind === "finish"
-                ? t("Finish")
-                : `A${s.index + 1}`;
-        const active = i === current;
+      {groups.map((g) => {
+        const active = g.key === activeGroup;
         return (
           <button
-            key={i}
-            onClick={() => onSelect(i)}
+            key={g.key}
+            onClick={() => onSelect(g.first)}
             className={cn(
               "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
               active
@@ -204,8 +279,8 @@ function StepDots({
                 : "border-border bg-background text-muted-foreground hover:bg-muted",
             )}
           >
-            {status && !active && <VerdictDot status={status} />}
-            {label}
+            {g.status && !active && <VerdictDot status={g.status} />}
+            {g.label}
           </button>
         );
       })}

@@ -119,3 +119,28 @@ describe("raw scale differences", () => {
     expect(result.axles[0].sideDiff).toBeUndefined();
   });
 });
+
+describe("the toe numerator", () => {
+  const result = computeJob(manualTrailer(), DEFAULT_SPECS[0]);
+
+  it("sums the two sides' A − B", () => {
+    // Axle 1: left -24, right +12.
+    expect(result.axles[0].sideSum).toBe(-12);
+    // Axle 2: left +18, right -12.
+    expect(result.axles[1].sideSum).toBe(6);
+  });
+
+  it("divided by D it equals the toe, whichever way you get there", () => {
+    for (const axle of result.axles) {
+      expect(axle.sideSum! / 6).toBeCloseTo(axle.toe!, 10);
+    }
+  });
+
+  it("keeps the sign that separates toe-in from toe-out", () => {
+    // A big magnitude with a negative sign is still toe-out, never 'in range'.
+    expect(result.axles[0].sideSum).toBeLessThan(0);
+    expect(result.axles[0].toeKind).toBe("toe-out");
+    expect(result.axles[1].sideSum).toBeGreaterThan(0);
+    expect(result.axles[1].toeKind).toBe("toe-in");
+  });
+});

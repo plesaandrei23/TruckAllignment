@@ -83,6 +83,18 @@ export function sideDifference(leftDiff: number, rightDiff: number): number {
 }
 
 /**
+ * Sum of the two sides' raw scale differences (mm) — the numerator of toe.
+ *
+ * Dividing this by D gives exactly the same number as adding the two wheels'
+ * rolling directions, because ((Al-Bl) + (Ar-Br)) / D = (Al-Bl)/D + (Ar-Br)/D.
+ * Its SIGN is what decides toe-in from toe-out; the magnitude alone says
+ * nothing about whether the axle is good.
+ */
+export function sideSum(leftDiff: number, rightDiff: number): number {
+  return leftDiff + rightDiff;
+}
+
+/**
  * Toe of an axle in mm/m. Positive => toe-in, negative => toe-out.
  * @param cLeft   Rolling direction of the left wheel (mm/m).
  * @param cRight  Rolling direction of the right wheel (mm/m).

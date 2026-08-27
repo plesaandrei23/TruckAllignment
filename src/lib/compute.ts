@@ -9,6 +9,7 @@ import {
   rollingDirection,
   scaleDifference,
   sideDifference,
+  sideSum,
   toe as toeSum,
   toeKind as classifyToe,
   outOfSquare,
@@ -63,6 +64,8 @@ export interface AxleComputed {
   wheelNo: { left: number; right: number };
   /** Left (A−B) minus right (A−B), in mm. + = the left side reads more. */
   sideDiff?: number;
+  /** Left (A−B) plus right (A−B), in mm. Divided by D this is the toe. */
+  sideSum?: number;
   cLeft?: number;
   cRight?: number;
   toe?: number;
@@ -183,8 +186,9 @@ function computeAxle(
   const left = computeWheel(axle.left, spec, axle.isSteering, d);
   const right = computeWheel(axle.right, spec, axle.isSteering, d);
 
-  const sideDiff =
-    left.diff !== undefined && right.diff !== undefined ? sideDifference(left.diff, right.diff) : undefined;
+  const bothDiffs = left.diff !== undefined && right.diff !== undefined;
+  const sideDiff = bothDiffs ? sideDifference(left.diff!, right.diff!) : undefined;
+  const sideSumValue = bothDiffs ? sideSum(left.diff!, right.diff!) : undefined;
 
   const cLeft = left.rolling;
   const cRight = right.rolling;
@@ -224,6 +228,7 @@ function computeAxle(
     isSteering: axle.isSteering,
     wheelNo: wheelNumbers(index),
     sideDiff,
+    sideSum: sideSumValue,
     cLeft,
     cRight,
     toe,

@@ -3,24 +3,26 @@ import type { SpecProfile } from "@/lib/types";
 import { Gauge } from "@/components/gauge";
 import { VerdictBadge } from "@/components/verdict";
 import { fmtMmM, fmtSigned, toeLabel, sideLabel } from "@/lib/format";
+import { round } from "@/lib/calc";
 import { useI18n } from "@/lib/i18n";
 
 /** Live toe & out-of-square readout for one axle, with the scale gauges. */
-export function LiveReadout({ axle, spec }: { axle: AxleComputed; spec?: SpecProfile }) {
+export function LiveReadout({ axle, spec, d }: { axle: AxleComputed; spec?: SpecProfile; d: number }) {
   const { t } = useI18n();
+  // The per-wheel C/Dm values are already shown beside each input column, so
+  // this block only carries the arithmetic and the two verdicts.
   return (
     <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
-      <div className="grid grid-cols-2 gap-3 text-center">
-        <Metric label={t("Left C/Dm")} value={fmtMmM(axle.cLeft)} />
-        <Metric label={t("Right C/Dm")} value={fmtMmM(axle.cRight)} />
-      </div>
-
-      {/* Raw plaque arithmetic, so the technician can sanity-check the maths. */}
-      <div className="flex items-center justify-between border-y py-2">
-        <span className="text-sm font-medium">
-          {t("Left − Right")} <span className="text-xs text-muted-foreground">({t("A − B")})</span>
-        </span>
-        <span className="font-mono text-sm tabular-nums">{fmtSigned(axle.sideDiff, 1)} mm</span>
+      {/*
+        The arithmetic spelled out, because it is what the technician would do
+        on paper: add the two sides' A−B, divide by D, and the SIGN of the
+        result is what separates toe-in from toe-out.
+      */}
+      <div className="space-y-1 rounded-md border bg-background px-3 py-2">
+        <Line label={`${t("Left")} (A − B)`} value={`${fmtSigned(axle.left.diff, 1)} mm`} />
+        <Line label={`${t("Right")} (A − B)`} value={`${fmtSigned(axle.right.diff, 1)} mm`} />
+        <Line label={t("Sum")} value={`${fmtSigned(axle.sideSum, 1)} mm`} strong />
+        <Line label={`÷ D = ${d > 0 ? `${round(d, 2)} m` : "—"}`} value={fmtMmM(axle.toe, 2)} strong />
       </div>
 
       <div className="space-y-1">
@@ -42,6 +44,12 @@ export function LiveReadout({ axle, spec }: { axle: AxleComputed; spec?: SpecPro
           leftLabel={t("toe-out")}
           rightLabel={t("toe-in")}
         />
+        {spec && (
+          <p className="text-[11px] text-muted-foreground">
+            {t("Allowed")} {round(spec.toe.min, 2)} … {round(spec.toe.max, 2)} mm/m
+            {spec.toe.min < 0 && <> · {t("this profile permits some toe-out")}</>}
+          </p>
+        )}
       </div>
 
       <div className="space-y-1">
@@ -68,15 +76,16 @@ export function LiveReadout({ axle, spec }: { axle: AxleComputed; spec?: SpecPro
   );
 }
 
+function Line({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className={`flex items-baseline justify-between text-xs ${strong ? "border-t pt-1 font-medium" : ""}`}>
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-mono tabular-nums">{value}</span>
+    </div>
+  );
+}
+
 function verdictLabel(t: (s: string) => string, status: "pass" | "fail" | "unknown") {
   return status === "pass" ? t("OK") : status === "fail" ? t("Out") : "—";
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-md border bg-card px-2 py-2">
-      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="font-mono text-base tabular-nums">{value}</div>
-    </div>
-  );
-}
