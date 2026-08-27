@@ -4,7 +4,18 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Plus, Search, Truck, Container, SlidersHorizontal, MoreVertical, Trash2, FileText, Sparkles } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Truck,
+  Container,
+  SlidersHorizontal,
+  MoreVertical,
+  Trash2,
+  FileText,
+  Sparkles,
+  ChevronLeft,
+} from "lucide-react";
 import { db, ensureBuiltInSpecs, deleteJob, saveJob } from "@/lib/db";
 import { newJob, newTruck8x4 } from "@/lib/defaults";
 import { makeDemoJob } from "@/lib/demo";
@@ -53,8 +64,9 @@ export default function HomePage() {
     );
   }, [jobs, query]);
 
-  async function create(kind: VehicleType | "truck8x4") {
+  async function create(kind: VehicleType | "truck8x4", regNo: string) {
     const job = kind === "truck8x4" ? newTruck8x4() : newJob(kind);
+    job.header.regNo = regNo.trim();
     await saveJob(job);
     router.push(`/job/${job.id}`);
   }
@@ -121,40 +133,95 @@ export default function HomePage() {
   );
 }
 
-function NewJobDialog({ onPick }: { onPick: (t: VehicleType | "truck8x4") => void }) {
+function NewJobDialog({ onPick }: { onPick: (t: VehicleType | "truck8x4", regNo: string) => Promise<void> }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  const [kind, setKind] = useState<VehicleType | "truck8x4" | null>(null);
+  const [regNo, setRegNo] = useState("");
+
+  // Only the plate is asked for up front — it is what you can read off the
+  // vehicle. The rest of the sheet's header is collected after measuring.
+  function reset(next: boolean) {
+    setOpen(next);
+    if (!next) {
+      setKind(null);
+      setRegNo("");
+    }
+  }
+
+  // Navigate first, then close: tearing the dialog down mid-push swallowed it.
+  async function start() {
+    if (!kind) return;
+    await onPick(kind, regNo);
+    reset(false);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={reset}>
       <DialogTrigger render={<Button size="lg" className="h-12 w-full text-base" />}>
         <Plus className="size-5" /> {t("New measurement")}
       </DialogTrigger>
       <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>{t("What are you measuring?")}</DialogTitle>
-          <DialogDescription>{t("Pick the vehicle so the right report is used.")}</DialogDescription>
-        </DialogHeader>
-        <div className="grid grid-cols-2 gap-3 pt-1">
-          <TypeCard
-            icon={<Truck className="size-7" />}
-            label={t("Truck")}
-            hint={t("Steering front axle + up to 2 more")}
-            onClick={() => onPick("truck")}
-          />
-          <TypeCard
-            icon={<Truck className="size-7" />}
-            label={t("Truck 8×4")}
-            hint={t("2 steering axles + 2 more")}
-            onClick={() => onPick("truck8x4")}
-          />
-          <TypeCard
-            icon={<Container className="size-7" />}
-            label={t("Trailer")}
-            hint={t("Up to 4 axles")}
-            onClick={() => onPick("trailer")}
-            className="col-span-2"
-          />
-        </div>
+        {kind === null ? (
+          <>
+            <DialogHeader>
+              <DialogTitle>{t("What are you measuring?")}</DialogTitle>
+              <DialogDescription>{t("Pick the vehicle so the right report is used.")}</DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <TypeCard
+                icon={<Truck className="size-7" />}
+                label={t("Truck")}
+                hint={t("Steering axle — add more later")}
+                onClick={() => setKind("truck")}
+              />
+              <TypeCard
+                icon={<Truck className="size-7" />}
+                label={t("Truck 8×4")}
+                hint={t("2 steering axles")}
+                onClick={() => setKind("truck8x4")}
+              />
+              <TypeCard
+                icon={<Container className="size-7" />}
+                label={t("Trailer")}
+                hint={t("Up to 4 axles")}
+                onClick={() => setKind("trailer")}
+                className="col-span-2"
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle>{t("Licence plate")}</DialogTitle>
+              <DialogDescription>{t("The rest of the details are filled in after measuring.")}</DialogDescription>
+            </DialogHeader>
+            <form
+              className="space-y-3 pt-1"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void start();
+              }}
+            >
+              <Input
+                autoFocus
+                value={regNo}
+                onChange={(e) => setRegNo(e.target.value.toUpperCase())}
+                placeholder="B 123 ABC"
+                className="h-12 text-center font-mono text-lg tracking-widest"
+                aria-label={t("Licence plate")}
+              />
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={() => setKind(null)}>
+                  <ChevronLeft className="size-4" /> {t("Back")}
+                </Button>
+                <Button type="submit" className="flex-1">
+                  {t("Start measuring")}
+                </Button>
+              </div>
+            </form>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -47,6 +47,24 @@ export function rollingDirection(a: number, b: number, d: number): number {
 }
 
 /**
+ * Run-out compensation target (manual p.13).
+ *
+ * Aim the laser at the scale and read the value; rotate the wheel half a turn
+ * and read it again. Trim the adapter until the dot sits midway between the
+ * two — that is where the wheel's true plane projects.
+ *
+ * Manual example: A = 95, B = 55 => adjust to 75.
+ */
+export function runoutTarget(start: number, half: number): number {
+  return (start + half) / 2;
+}
+
+/** How far apart the two run-out readings are (mm). 0 = adapter already true. */
+export function runoutSpread(start: number, half: number): number {
+  return Math.abs(start - half);
+}
+
+/**
  * Raw scale difference of one wheel in mm: front (A) minus rear (B).
  *
  * This is the numerator of the rolling direction, before dividing by D — the

@@ -17,6 +17,11 @@ export const HELP = {
     body: "Measure the distance, in metres, between the front frame-gauge scale (A) and the rear frame-gauge scale (B). One value is used for the whole vehicle. Example in the manual: D = 6 m.",
     ref: "Manual p.26",
   },
+  runout: {
+    title: "Run-out compensation",
+    body: "Jack the axle up. Aim the laser at the scale with the projector parallel to the adjustment arm and read the value (Start, e.g. 95). Spin the wheel half a turn and read again (Half turn, e.g. 55). Trim the white knob until the dot sits midway between the two — 75 here. Then turn the wheel a quarter turn and trim the black knob to that same value. Spin and check the dot no longer wanders.",
+    ref: "Manual p.13",
+  },
   A: {
     title: "Front scale reading (A)",
     body: "Aim the laser dot at the FRONT measuring scale for this wheel and read the value in mm. Left wheel → scale A1, right wheel → scale A2. Example: 158.",
@@ -87,6 +92,11 @@ export const HELP_RO: Record<HelpKey, HelpText> = {
     title: "Distanța dintre rigle (D)",
     body: "Măsoară distanța, în metri, dintre rigla față (A) și rigla spate (B) ale cadrului. O singură valoare pentru tot vehiculul. Exemplu din manual: D = 6 m.",
     ref: "Manual pag. 26",
+  },
+  runout: {
+    title: "Compensarea bătăii",
+    body: "Ridică axa pe cric. Îndreaptă laserul spre riglă cu proiectorul paralel cu brațul de reglaj și citește valoarea (Start, ex. 95). Rotește roata o jumătate de tură și citește din nou (Jumătate de tură, ex. 55). Reglează din butonul alb până când punctul cade exact la mijloc între cele două — 75 aici. Apoi rotește roata un sfert de tură și reglează din butonul negru la aceeași valoare. Rotește și verifică să nu mai „fugă” punctul.",
+    ref: "Manual p.13",
   },
   A: {
     title: "Citirea riglei față (A)",

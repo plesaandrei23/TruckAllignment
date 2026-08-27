@@ -12,11 +12,10 @@ import { ScaledSheet } from "@/components/report/scaled-sheet";
 import { ScaleStrip } from "@/components/app-header";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n";
-import { LangToggle } from "@/components/lang-toggle";
 
 export default function ReportPage() {
   const { id } = useParams<{ id: string }>();
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const [job, setJob] = useState<Job | null | undefined>(undefined);
   const [spec, setSpec] = useState<SpecProfile | undefined>();
 
@@ -66,7 +65,6 @@ export default function ReportPage() {
               {job.header.regNo || job.header.type || t("Untitled vehicle")} · {t(job.vehicleType === "truck" ? "Truck" : "Trailer")}
             </p>
           </div>
-          <LangToggle />
           <Button onClick={() => window.print()}>
             <Printer className="size-4" /> {t("Print / PDF")}
           </Button>
@@ -76,9 +74,10 @@ export default function ReportPage() {
 
       <div className="mx-auto w-full max-w-2xl flex-1 p-3 sm:p-6">
         <ScaledSheet width={SHEET_W} height={SHEET_H}>
-          <Am39Report job={job} computed={computed} lang={lang} />
+          <Am39Report job={job} computed={computed} />
         </ScaledSheet>
         <p className="no-print mt-3 text-center text-xs text-muted-foreground">
+          {t("The AM39 sheet is always issued in English.")}{" "}
           {t(
             "Tip: in the print dialog choose “Save as PDF”. Colours must be enabled to keep the pass/fail shading.",
           )}

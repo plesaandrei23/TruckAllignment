@@ -17,6 +17,14 @@ export interface WheelReading {
   A?: number;
   /** Rear frame-gauge scale reading (mm). */
   B?: number;
+  /**
+   * Run-out compensation (manual p.13): the scale value with the laser at its
+   * start position, and again after half a turn of the wheel. The adapter is
+   * then trimmed until the dot sits midway between the two. Workshop aid only —
+   * never printed on the report.
+   */
+  runoutStart?: number;
+  runoutHalf?: number;
   /** Camber angle (all axles, optional). */
   camber?: AngleDM;
   /** Caster angle (steering axle only, optional). */
@@ -53,6 +61,28 @@ export interface SteeringExtras {
   tapeRight?: number;
 }
 
+/** Which pass of the procedure a saved reading belongs to. */
+export type ReadingStage = "initial" | "adjusted" | "final";
+
+/**
+ * One saved set of scale readings for an axle.
+ *
+ * The shop procedure measures, adjusts the track rod, and measures again, so a
+ * job accumulates several readings per axle. The axle's own `left`/`right` hold
+ * the current (final) values that the AM39 report prints; this trail is kept
+ * for the app's history tab only.
+ */
+export interface AxleReading {
+  id: string;
+  /** Saved at (epoch ms). */
+  at: number;
+  stage: ReadingStage;
+  /** Distance between the scales when this reading was taken (m). */
+  D: number;
+  left: { A?: number; B?: number };
+  right: { A?: number; B?: number };
+}
+
 export interface Axle {
   /** Stable id for React keys and updates. */
   id: string;
@@ -60,6 +90,8 @@ export interface Axle {
   isSteering: boolean;
   left: WheelReading;
   right: WheelReading;
+  /** Every reading saved for this axle, oldest first. Never printed. */
+  readings?: AxleReading[];
   /** Present when isSteering. */
   steering?: SteeringExtras;
 }
@@ -134,6 +166,16 @@ export interface SpecProfile {
   steeringBoxMaxMmPerM: number;
   /** Max tape-measure out-of-square difference, mm (manual: 5). */
   tapeDiffMax: number;
+}
+
+/**
+ * Which pair of measuring scales an axle is read against, as named on the AM39
+ * sheet. A truck sheet has one pair (A1/B1 left, A2/B2 right); a trailer sheet
+ * has a second pair further back for axles 3 and 4.
+ */
+export function scaleNumbers(vehicleType: VehicleType, axleIndex: number): { left: number; right: number } {
+  const block = vehicleType === "trailer" && axleIndex >= 2 ? 1 : 0;
+  return { left: block * 2 + 1, right: block * 2 + 2 };
 }
 
 /** Zero-based axle index -> the JOSAM C-numbers for its left/right wheels. */

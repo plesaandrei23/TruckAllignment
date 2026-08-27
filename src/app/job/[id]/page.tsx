@@ -12,13 +12,19 @@ import { defaultSpecId } from "@/lib/defaults";
 import { AppHeader } from "@/components/app-header";
 import { SetupStep } from "@/components/editor/setup-step";
 import { AxleStep } from "@/components/editor/axle-step";
+import { LogStep } from "@/components/editor/log-step";
+import { DetailsStep } from "@/components/editor/details-step";
 import { ReviewStep } from "@/components/editor/review-step";
 import { VerdictDot } from "@/components/verdict";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 
-type StepKind = { kind: "setup" } | { kind: "axle"; index: number } | { kind: "review" };
+type StepKind =
+  | { kind: "setup" }
+  | { kind: "axle"; index: number }
+  | { kind: "log" }
+  | { kind: "finish" };
 
 export default function JobEditorPage() {
   const params = useParams<{ id: string }>();
@@ -43,7 +49,8 @@ export default function JobEditorPage() {
     return [
       { kind: "setup" },
       ...job.axles.map((_, i) => ({ kind: "axle", index: i }) as StepKind),
-      { kind: "review" },
+      { kind: "log" },
+      { kind: "finish" },
     ];
   }, [job]);
 
@@ -82,9 +89,11 @@ export default function JobEditorPage() {
   const stepLabel =
     current.kind === "setup"
       ? t("Setup")
-      : current.kind === "review"
-        ? t("Review")
-        : `${t("Axle")} ${current.index + 1}${job.axles[current.index].isSteering ? ` · ${t("steering")}` : ""}`;
+      : current.kind === "log"
+        ? t("Readings")
+        : current.kind === "finish"
+          ? t("Finish")
+          : `${t("Axle")} ${current.index + 1}${job.axles[current.index].isSteering ? ` · ${t("steering")}` : ""}`;
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col pb-24">
@@ -121,7 +130,13 @@ export default function JobEditorPage() {
             update={update}
           />
         )}
-        {current.kind === "review" && <ReviewStep job={job} computed={computed} spec={spec} />}
+        {current.kind === "log" && <LogStep job={job} update={update} />}
+        {current.kind === "finish" && (
+          <div className="space-y-5">
+            <DetailsStep job={job} update={update} />
+            <ReviewStep job={job} computed={computed} spec={spec} />
+          </div>
+        )}
       </div>
 
       {/* sticky bottom navigation */}
@@ -170,7 +185,13 @@ function StepDots({
       {steps.map((s, i) => {
         const status = statusFor(s);
         const label =
-          s.kind === "setup" ? t("Setup") : s.kind === "review" ? t("Review") : `A${s.index + 1}`;
+          s.kind === "setup"
+            ? t("Setup")
+            : s.kind === "log"
+              ? t("Readings")
+              : s.kind === "finish"
+                ? t("Finish")
+                : `A${s.index + 1}`;
         const active = i === current;
         return (
           <button

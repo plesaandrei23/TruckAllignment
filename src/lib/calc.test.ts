@@ -13,6 +13,8 @@ import {
   toeOutOnTurn,
   round,
   withSign,
+  runoutTarget,
+  runoutSpread,
 } from "./calc";
 
 /**
@@ -119,5 +121,23 @@ describe("formatting helpers", () => {
     expect(withSign(-2.5)).toBe("-2.5");
     expect(withSign(0)).toBe("0");
     expect(withSign(-0)).toBe("0");
+  });
+});
+
+describe("run-out compensation (manual p.13)", () => {
+  it("targets the midpoint of the two readings", () => {
+    // Manual's worked example: 95 at the start, 55 after half a turn -> 75.
+    expect(runoutTarget(95, 55)).toBe(75);
+    expect(runoutSpread(95, 55)).toBe(40);
+  });
+
+  it("works the same way when the first reading is the smaller one", () => {
+    expect(runoutTarget(55, 95)).toBe(75);
+    expect(runoutSpread(55, 95)).toBe(40);
+  });
+
+  it("reports no spread when the adapter is already true", () => {
+    expect(runoutSpread(120, 120)).toBe(0);
+    expect(runoutTarget(120, 120)).toBe(120);
   });
 });

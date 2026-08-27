@@ -44,6 +44,58 @@ const RO: Record<string, string> = {
   "Actions": "Acțiuni",
   "Spec profiles": "Profiluri de toleranță",
 
+  // new-measurement dialog
+  "Licence plate": "Număr de înmatriculare",
+  "The rest of the details are filled in after measuring.": "Restul datelor se completează după măsurare.",
+  "Start measuring": "Începe măsurarea",
+  "Steering axle — add more later": "Axă directoare — adaugi altele mai târziu",
+  "2 steering axles": "2 axe directoare",
+
+  // measuring workflow
+  "Run-out compensation": "Compensarea bătăii",
+  "step 1": "pasul 1",
+  "step 2": "pasul 2",
+  "step 3": "pasul 3",
+  "Read the scale, spin the wheel half a turn and read again. Trim the adapter until the dot sits on the target.":
+    "Citește rigla, rotește roata o jumătate de tură și citește din nou. Reglează adaptorul până când punctul cade pe țintă.",
+  "Start": "Start",
+  "Half turn": "Jumătate de tură",
+  "Adjust to": "Reglează la",
+  "Run-out": "Bătaie",
+  "Measure": "Măsurare",
+  "saved": "salvate",
+  "Save first reading": "Salvează prima măsurătoare",
+  "Save reading after adjustment": "Salvează măsurătoarea după reglaj",
+  "The values above are what the report prints.": "Valorile de mai sus sunt cele tipărite în raport.",
+  "Reading saved": "Măsurătoare salvată",
+  "front": "față",
+  "rear": "spate",
+  "FRONT": "FAȚĂ",
+  "Centre the steering": "Centrarea direcției",
+  "With the steering box on its centre mark, read the same wheel on both scales. Max 1°/m (≈ 17.4 mm/m).":
+    "Cu caseta de direcție pe reperul de centru, citește aceeași roată pe ambele rigle. Maxim 1°/m (≈ 17,4 mm/m).",
+  "Deviation": "Abatere",
+  "Only the axles you are aligning. The rest stay blank on the report.":
+    "Doar axele pe care le reglezi. Restul rămân necompletate în raport.",
+
+  // readings log
+  "Readings": "Măsurători",
+  "Finish": "Finalizare",
+  "No readings saved yet": "Nicio măsurătoare salvată",
+  "Save a reading on an axle before and after the mechanic adjusts, and both show up here.":
+    "Salvează câte o măsurătoare înainte și după reglajul mecanicului și apar amândouă aici.",
+  "Workshop record only — none of this is printed on the report.":
+    "Doar evidență de atelier — nimic din toate acestea nu apare în raport.",
+  "Before adjustment": "Înainte de reglaj",
+  "After adjustment": "După reglaj",
+  "On the report": "În raport",
+  "Restore": "Restaurează",
+  "Reading restored": "Măsurătoare restaurată",
+
+  // finish
+  "Report details": "Date pentru raport",
+  "These fill in the header of the AM39 sheet.": "Acestea completează antetul fișei AM39.",
+
   // setup
   "Vehicle": "Vehicul",
   "Reg. no": "Nr. înmatriculare",
@@ -154,6 +206,7 @@ const RO: Record<string, string> = {
 
   // report toolbar
   "AM39 report": "Raport AM39",
+  "The AM39 sheet is always issued in English.": "Fișa AM39 se emite întotdeauna în engleză.",
   "Print / PDF": "Printează / PDF",
   "Report not found.": "Raportul nu a fost găsit.",
   "Tip: in the print dialog choose “Save as PDF”. Colours must be enabled to keep the pass/fail shading.":

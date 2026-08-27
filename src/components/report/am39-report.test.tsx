@@ -49,28 +49,58 @@ describe("Am39Report renders to static markup", () => {
 
   it("does not throw and includes the header + JOSAM mark", () => {
     expect(html).toContain("JOSAM");
+    expect(html).toContain("www.josam.se");
     expect(html).toContain("AB 123 CD");
     expect(html).toContain("Volvo FH");
   });
 
-  it("shows the steering turn diagram and geometry only for trucks", () => {
-    expect(html).toContain("TOE-OUT ON TURN");
-    expect(html).toContain("MAX TURN");
-    expect(html).toContain("CASTER"); // trilingual measure box (uppercased)
-    expect(html).toContain("KPI");
+  it("carries the form's own four-language labels verbatim", () => {
+    for (const label of [
+      "KURVVINKELDIFFERENS",
+      "SPURDIFFERENSVINKEL",
+      "TOE-OUT ON TURNS",
+      "MAX. LENKEINSCHLAG",
+      "BRAQUAGE MAX.",
+      "CARROSSAGE",
+      "SPREIZUNG",
+      "INCLIN. PIVOTS",
+      "NACHLAUF",
+      "CHASSE",
+      "SNEDSTÄLLNING",
+      "SCHRÄGSTÄLLUNG",
+      "OUT OF SQUARE",
+      "ANGLE FAUSSÉ",
+    ]) {
+      expect(html).toContain(label);
+    }
   });
 
-  it("renders computed toe and out-of-square values", () => {
-    // Steering axle C1/C2 (D=6): (158-151)/6=+1.17, (140-154)/6=-2.33 -> toe ~ -1.17
-    // Drive axle C3/C4: (110-92)/6=+3, (96-108)/6=-2 -> toe +1, oos -2.5
+  it("prints the sheet's identifying marks", () => {
+    expect(html).toContain("AM39-1");
+    expect(html).toContain("T 27 1-2-3-4 1204");
+  });
+
+  it("renders the toe box and the measured values", () => {
     expect(html).toContain("TOE-IN");
     expect(html).toContain("TOE-OUT");
-    expect(html).toContain("6 m"); // D box
-    expect(html).toContain("OUT OF SQUARE");
+    // Raw scale readings are printed as entered.
+    expect(html).toContain(">158<");
+    expect(html).toContain(">140<");
+    // Steering axle C1/C2 (D=6): (158-151)/6=+1.17, (140-154)/6=-2.33 -> toe -1.17.
+    expect(html).toContain(">-1.17<");
+    // Drive axle C3/C4: (110-92)/6=+3, (96-108)/6=-2 -> toe +1.
+    expect(html).toContain(">+1<");
+  });
+
+  it("is issued in English regardless of the app language", () => {
+    // The Romanian words the app itself uses must never reach the sheet.
+    for (const ro of ["CONVERGENȚĂ", "DIVERGENȚĂ", "Rezultat"]) {
+      expect(html).not.toContain(ro);
+    }
   });
 });
 
-describe("Am39Report trailer variant (two ruler blocks, no turn diagram)", () => {
+describe("Am39Report trailer variant (two scale pairs, no turn diagram)", () => {
   const spec = DEFAULT_SPECS.find((s) => s.vehicleType === "trailer");
   const job: Job = {
     id: "tr",
@@ -89,14 +119,21 @@ describe("Am39Report trailer variant (two ruler blocks, no turn diagram)", () =>
   const computed = computeJob(job, spec);
   const html = renderToStaticMarkup(<Am39Report job={job} computed={computed} />);
 
-  it("renders four axles across two blocks (A1..A4, B1..B4)", () => {
-    for (const tag of ["A1", "A2", "A3", "A4", "B1", "B2", "B3", "B4"]) {
-      expect(html).toContain(`>${tag}<`);
+  it("numbers both pairs of scales, 1/2 and 3/4", () => {
+    // Tags render as a letter plus a subscript tspan.
+    for (const n of ["1", "2", "3", "4"]) {
+      expect(html).toContain(`<tspan font-size="8" dy="2">${n}</tspan>`);
     }
   });
 
   it("has no truck-only turn diagram", () => {
-    expect(html).not.toContain("TOE-OUT ON TURN");
-    expect(html).not.toContain("MAX TURN");
+    expect(html).not.toContain("TOE-OUT ON TURNS");
+    expect(html).not.toContain("MAX. TURN");
+  });
+
+  it("still prints all four axle slots", () => {
+    for (const c of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      expect(html).toContain(`>${c}</tspan>`);
+    }
   });
 });

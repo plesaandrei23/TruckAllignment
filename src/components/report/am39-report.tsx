@@ -5,23 +5,21 @@ import type { AxleComputed, JobComputed, WheelComputed, SteeringComputed } from 
 import type { VerdictStatus } from "@/lib/verdict";
 import { fmtAngle, fmtDate } from "@/lib/format";
 import { withSign, round } from "@/lib/calc";
-import { translate, type Lang } from "@/lib/i18n";
 
 /**
- * Faithful recreation of the JOSAM AM39 test report sheet (A4 portrait), matching
- * the paper forms `truckModel.jpeg` (steering axle + turn diagram, one ruler
- * block, 3 axle slots) and `trailerModel.jpeg` (4 axle slots across two ruler
- * blocks).
+ * The JOSAM AM39-1 test report sheet, redrawn to match the printed forms
+ * `truckModel.jpeg` and `trailerModel.jpeg` box for box, then filled with the
+ * job's data.
  *
- * The layout is a FIXED template: a truck always shows 3 axle rows + the turn
- * diagram, a trailer always shows 4 rows in two blocks — exactly like the paper
- * form. Actual measurements fill the matching slots; unused slots stay blank but
- * keep the printed design. Extra axles beyond the template extend the same
- * pattern.
+ * The sheet is a FIXED template, exactly like the paper: a truck always prints
+ * the turn diagram, one pair of scales and three axle rows; a trailer always
+ * prints four axle rows across two pairs of scales. Rows with no measurements
+ * stay blank, as they would on paper.
  *
- * Rendered entirely in SVG so it prints crisply at true size. All values come
- * from `computeJob`; pass/fail is shown as a light tint on each value box while
- * keeping the black line-art look of the original form. Bilingual (EN / RO).
+ * The form's own labels are multilingual (Swedish / German / English / French)
+ * and are reproduced verbatim; the sheet is always issued in English regardless
+ * of the app's language. Measured values are tinted green or red against the
+ * chosen tolerance profile — the only ink that is not on the blank form.
  */
 
 export const SHEET_W = 794; // A4 portrait @96dpi
@@ -30,16 +28,20 @@ export const SHEET_H = 1123;
 /** Axle rows the printed template always shows, per vehicle type. */
 const TEMPLATE_SLOTS: Record<VehicleType, number> = { truck: 3, trailer: 4 };
 
-const M = 24; // outer margin
+const M = 22; // outer margin
 const INK = "#111111";
-const GREY = "#6b7280";
+const HAIR = 0.7; // thin rule
+const LINE = 1; // normal rule
+
+/** The form's own dotted write-on lines. */
+const DOTS = "1.5 2";
 
 function vfill(status: VerdictStatus): { fill: string; text: string } {
   switch (status) {
     case "pass":
-      return { fill: "#dcfce7", text: "#15803d" };
+      return { fill: "#e8f7ec", text: "#15803d" };
     case "fail":
-      return { fill: "#fee2e2", text: "#b91c1c" };
+      return { fill: "#fdeaea", text: "#b91c1c" };
     default:
       return { fill: "#ffffff", text: INK };
   }
@@ -99,16 +101,12 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return out;
 }
 
-export function Am39Report({
-  job,
-  computed,
-  lang = "en",
-}: {
-  job: Job;
-  computed: JobComputed;
-  lang?: Lang;
-}) {
-  const tr = (s: string) => translate(lang, s);
+/** Value text or nothing at all — a blank form line stays blank. */
+function num(v: number | undefined, decimals = 1): string {
+  return v === undefined || Number.isNaN(v) ? "" : String(round(v, decimals));
+}
+
+export function Am39Report({ job, computed }: { job: Job; computed: JobComputed }) {
   const isTruck = job.vehicleType === "truck";
 
   // Fixed template slots: fill with real axles, pad the rest with blanks.
@@ -116,49 +114,49 @@ export function Am39Report({
   const slots: AxleComputed[] = [];
   for (let i = 0; i < slotCount; i++) {
     const real = computed.axles[i];
-    const defaultSteering = isTruck && i === 0;
-    slots.push(real ?? blankAxle(i, defaultSteering));
+    slots.push(real ?? blankAxle(i, isTruck && i === 0));
   }
 
   const blocks: AxleComputed[][] = isTruck ? [slots] : chunk(slots, 2);
   const steeringAxle = slots.find((a) => a.isSteering);
 
   // ---- vertical layout ----
-  let y = M;
-  const headerH = 66;
-  const headerY = y;
-  y += headerH + 6;
+  // Heights are chosen so the blocks fill the A4 page the way the printed
+  // sheet does, rather than bunching up at the top.
+  const headerY = M;
+  // A trailer has no turn block, so its first pair of scales needs its own gap
+  // under the header.
+  let y = headerY + (isTruck ? 78 : 96);
 
   let turnY = 0;
   if (isTruck) {
-    turnY = y + 10;
-    y += 128;
+    turnY = y;
+    y += 196;
   }
+  const rowH = isTruck ? { steering: 196, plain: 176 } : { steering: 158, plain: 158 };
 
   const blockLayouts: {
     axles: { axle: AxleComputed; y: number; h: number }[];
     rulerTopY: number;
     rulerBotY: number;
-    dBoxY: number;
+    scaleNo: number;
   }[] = [];
 
   for (let bi = 0; bi < blocks.length; bi++) {
     const rulerTopY = y;
-    y += 20;
+    y += 14;
     const axleLayouts: { axle: AxleComputed; y: number; h: number }[] = [];
     for (const axle of blocks[bi]) {
-      const h = axle.isSteering ? 150 : 120;
+      const h = axle.isSteering ? rowH.steering : rowH.plain;
       axleLayouts.push({ axle, y, h });
       y += h;
     }
-    const rulerBotY = y;
-    y += 20;
-    const dBoxY = rulerBotY;
-    blockLayouts.push({ axles: axleLayouts, rulerTopY, rulerBotY, dBoxY });
-    y += 6;
+    const rulerBotY = y + 4;
+    y = rulerBotY + 62;
+    blockLayouts.push({ axles: axleLayouts, rulerTopY, rulerBotY, scaleNo: bi * 2 + 1 });
   }
 
-  const oosY = y + 4;
+  const oosY = y;
 
   return (
     <svg
@@ -169,268 +167,340 @@ export function Am39Report({
         background: "#fff",
         WebkitPrintColorAdjust: "exact",
         printColorAdjust: "exact",
-        fontFamily: "var(--font-geist-sans, system-ui, sans-serif)",
+        fontFamily: "Helvetica, Arial, sans-serif",
       }}
     >
-      <Header job={job} status={computed.status} y={headerY} tr={tr} />
-      {isTruck && steeringAxle && <TurnDiagram axle={steeringAxle} job={job} y={turnY} tr={tr} />}
+      <Header job={job} y={headerY} />
+      {isTruck && <TurnDiagram axle={steeringAxle} job={job} y={turnY} />}
 
       {blockLayouts.map((block, bi) => (
         <g key={bi}>
-          <Ruler y={block.rulerTopY + 12} leftTag={`A${bi * 2 + 1}`} rightTag={`A${bi * 2 + 2}`} marker={isTruck} />
+          <Ruler y={block.rulerTopY} leftTag="A" rightTag="A" no={block.scaleNo} marker />
           {block.axles.map(({ axle, y: ay, h }) => (
-            <AxleRow key={axle.id} axle={axle} job={job} y={ay} h={h} tr={tr} />
+            <AxleRow key={axle.id} axle={axle} job={job} y={ay} h={h} scaleNo={block.scaleNo} />
           ))}
-          <Ruler y={block.rulerBotY + 12} leftTag={`B${bi * 2 + 1}`} rightTag={`B${bi * 2 + 2}`} />
-          <DBox
-            x={SHEET_W - M - 96}
-            y={block.dBoxY - 2}
-            d={job.D}
-            top={`A${bi * 2 + 1},${bi * 2 + 2}`}
-            bot={`B${bi * 2 + 1},${bi * 2 + 2}`}
-          />
+          <Ruler y={block.rulerBotY} leftTag="B" rightTag="B" no={block.scaleNo} marker />
+          <DBox x={SHEET_W - M - 104} y={block.rulerBotY + 20} d={job.D} no={block.scaleNo} />
         </g>
       ))}
 
-      <OutOfSquare computed={computed} isTruck={isTruck} y={oosY} tr={tr} />
+      <OutOfSquare computed={computed} slots={slots} isTruck={isTruck} y={oosY} />
 
-      {/* footer marks */}
-      <text x={M} y={SHEET_H - 12} fontSize={13} fontWeight={700} fill={INK}>
+      {/* form footers, as printed */}
+      <text x={M} y={SHEET_H - 22} fontSize={16} fontWeight={800} fill={INK}>
         AM39-1
       </text>
-      <text x={SHEET_W - M} y={SHEET_H - 12} fontSize={8} fill={GREY} textAnchor="end">
-        JOSAM laser AM · T 27
+      <text x={SHEET_W - M} y={SHEET_H - 22} fontSize={7} fill={INK} textAnchor="end">
+        T 27 1-2-3-4 1204
       </text>
     </svg>
   );
 }
 
-type Tr = (s: string) => string;
-
 /* ------------------------------------------------------------------ */
 /* Primitives                                                          */
 /* ------------------------------------------------------------------ */
 
-/** A boxed value with a small label tab, e.g. A₁ | 158. */
-function LabelValue({
+/** The form's dotted write-on line. */
+function DotLine({ x1, x2, y }: { x1: number; x2: number; y: number }) {
+  return <line x1={x1} y1={y} x2={x2} y2={y} stroke={INK} strokeWidth={HAIR} strokeDasharray={DOTS} />;
+}
+
+/** Stacked "+" over "−", as printed next to every signed value. */
+function PlusMinus({ x, y, size = 7 }: { x: number; y: number; size?: number }) {
+  return (
+    <g fill={INK} fontSize={size} fontWeight={700} textAnchor="middle">
+      <text x={x} y={y}>
+        +
+      </text>
+      <text x={x} y={y + size + 1}>
+        −
+      </text>
+    </g>
+  );
+}
+
+/** Mono value text, drawn only when there is something to print. */
+function Val({
+  x,
+  y,
+  value,
+  size = 9,
+  anchor = "end",
+  fill = INK,
+}: {
+  x: number;
+  y: number;
+  value: string;
+  size?: number;
+  anchor?: "start" | "middle" | "end";
+  fill?: string;
+}) {
+  if (!value) return null;
+  return (
+    <text
+      x={x}
+      y={y}
+      fontSize={size}
+      fontWeight={700}
+      fill={fill}
+      textAnchor={anchor}
+      style={{ fontFamily: "'Courier New', monospace" }}
+    >
+      {value}
+    </text>
+  );
+}
+
+/**
+ * An A/B scale box: a bold tag cell and a dotted write-on line, mirrored for the
+ * right-hand panel so the tag always sits on the outside edge, as on the sheet.
+ */
+function ScaleBox({
   x,
   y,
   w,
-  label,
+  h = 20,
+  tag,
+  sub,
   value,
-  status = "unknown",
-  labelW = 26,
-  h = 18,
+  mirror,
 }: {
   x: number;
   y: number;
   w: number;
-  label: string;
-  value: string;
-  status?: VerdictStatus;
-  labelW?: number;
   h?: number;
-}) {
-  const c = vfill(status);
-  return (
-    <g>
-      <rect x={x} y={y} width={w} height={h} fill={c.fill} stroke={INK} strokeWidth={0.8} />
-      <line x1={x + labelW} y1={y} x2={x + labelW} y2={y + h} stroke={INK} strokeWidth={0.8} />
-      <text x={x + labelW / 2} y={y + h / 2 + 3.5} fontSize={9} fontWeight={700} fill={INK} textAnchor="middle">
-        {label}
-      </text>
-      <text
-        x={x + w - 5}
-        y={y + h / 2 + 3.5}
-        fontSize={10}
-        fontWeight={600}
-        fill={c.text}
-        textAnchor="end"
-        style={{ fontFamily: "var(--font-geist-mono, monospace)" }}
-      >
-        {value}
-      </text>
-    </g>
-  );
-}
-
-/** Trilingual measurement box (Camber / KPI / Caster) with a value. */
-function MeasureBox({
-  x,
-  y,
-  w,
-  h,
-  lines,
-  value,
-  status = "unknown",
-}: {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  lines: string[];
+  tag: string;
+  sub: string;
   value: string;
-  status?: VerdictStatus;
+  mirror?: boolean;
 }) {
-  const c = vfill(status);
+  const tagW = 30;
+  const tagX = mirror ? x + w - tagW : x;
   return (
     <g>
-      <rect x={x} y={y} width={w} height={h} fill={c.fill} stroke={INK} strokeWidth={0.8} />
-      {lines.map((ln, i) => (
-        <text key={i} x={x + 4} y={y + 9 + i * 7.2} fontSize={5.6} fill={GREY} letterSpacing={0.2}>
-          {ln.toUpperCase()}
-        </text>
-      ))}
-      <text
-        x={x + w - 5}
-        y={y + h - 6}
-        fontSize={11}
-        fontWeight={700}
-        fill={c.text}
-        textAnchor="end"
-        style={{ fontFamily: "var(--font-geist-mono, monospace)" }}
-      >
-        {value}
+      <rect x={x} y={y} width={w} height={h} fill="none" stroke={INK} strokeWidth={LINE} />
+      <line x1={mirror ? tagX : x + tagW} y1={y} x2={mirror ? tagX : x + tagW} y2={y + h} stroke={INK} strokeWidth={LINE} />
+      <text x={tagX + tagW / 2} y={y + h / 2 + 4.5} fontSize={13} fontWeight={800} fill={INK} textAnchor="middle">
+        {tag}
+        <tspan fontSize={8} dy={2}>
+          {sub}
+        </tspan>
       </text>
+      <DotLine x1={mirror ? x + 6 : x + tagW + 6} x2={mirror ? tagX - 6 : x + w - 6} y={y + h - 5} />
+      <Val
+        x={mirror ? x + 10 : x + w - 8}
+        y={y + h - 7}
+        value={value}
+        anchor={mirror ? "start" : "end"}
+        size={10}
+      />
     </g>
   );
 }
 
-/** JOSAM measuring scale: 0 100 200 300 ...gap... 300 200 100 0. */
+/** JOSAM measuring scale: 0 100 200 300 … gap … 300 200 100 0. */
 function Ruler({
   y,
   leftTag,
   rightTag,
+  no,
   marker,
 }: {
   y: number;
   leftTag: string;
   rightTag: string;
+  no: number;
   marker?: boolean;
 }) {
-  const x0 = M + 150;
-  const x1 = SHEET_W - M - 150;
-  const w = x1 - x0;
-  const ticks: ReactNode[] = [];
-  const n = 40;
-  for (let i = 0; i <= n; i++) {
-    const x = x0 + (i / n) * w;
-    const major = i % 5 === 0;
-    ticks.push(<line key={i} x1={x} y1={y} x2={x} y2={y + (major ? 7 : 4)} stroke={INK} strokeWidth={major ? 0.9 : 0.5} />);
-  }
-  const labels = ["0", "100", "200", "300"];
-  return (
-    <g>
-      <text x={x0 - 6} y={y + 6} fontSize={10} fontWeight={700} fill={INK} textAnchor="end">
-        {leftTag}
-      </text>
-      <line x1={x0} y1={y} x2={x1} y2={y} stroke={INK} strokeWidth={0.9} />
-      {ticks}
-      {labels.map((l, i) => (
-        <text key={`l${i}`} x={x0 + 6 + i * (w * 0.11)} y={y - 3} fontSize={6.5} fill={INK} textAnchor="middle">
-          {l}
-        </text>
-      ))}
-      {labels
-        .slice()
-        .reverse()
-        .map((l, i) => (
-          <text key={`r${i}`} x={x1 - 6 - i * (w * 0.11)} y={y - 3} fontSize={6.5} fill={INK} textAnchor="middle">
+  const x0 = M + 26;
+  const x1 = SHEET_W - M - 26;
+  const barW = 118; // printed portion carrying the numbers
+  const h = 13;
+  const cx = (x0 + x1) / 2;
+
+  const scaleBar = (bx: number, flip: boolean) => {
+    const ticks: ReactNode[] = [];
+    const n = 24;
+    for (let i = 0; i <= n; i++) {
+      const tx = bx + (i / n) * barW;
+      const major = i % 6 === 0;
+      ticks.push(
+        <line
+          key={i}
+          x1={tx}
+          y1={y + h}
+          x2={tx}
+          y2={y + h - (major ? 6 : 3)}
+          stroke={INK}
+          strokeWidth={major ? 0.8 : 0.5}
+        />,
+      );
+    }
+    const labels = ["0", "100", "200", "300"];
+    return (
+      <g>
+        <rect x={bx} y={y} width={barW} height={h} fill="none" stroke={INK} strokeWidth={LINE} />
+        {ticks}
+        {(flip ? labels.slice().reverse() : labels).map((l, i) => (
+          <text
+            key={l}
+            x={bx + 10 + i * ((barW - 20) / 3)}
+            y={y + 7}
+            fontSize={6}
+            fontWeight={600}
+            fill={INK}
+            textAnchor="middle"
+          >
             {l}
           </text>
         ))}
-      {marker && (
-        <path d={`M ${(x0 + x1) / 2 - 5} ${y - 10} L ${(x0 + x1) / 2 + 5} ${y - 10} L ${(x0 + x1) / 2} ${y - 2} Z`} fill={INK} />
-      )}
-      <text x={x1 + 6} y={y + 6} fontSize={10} fontWeight={700} fill={INK}>
+      </g>
+    );
+  };
+
+  return (
+    <g>
+      <text x={x0 - 4} y={y + h} fontSize={14} fontWeight={800} fill={INK} textAnchor="end">
+        {leftTag}
+        <tspan fontSize={8} dy={2}>
+          {no}
+        </tspan>
+      </text>
+      {scaleBar(x0, false)}
+      <line x1={x0} y1={y + h} x2={x1} y2={y + h} stroke={INK} strokeWidth={LINE} />
+      {scaleBar(x1 - barW, true)}
+      <text x={x1 + 4} y={y + h} fontSize={14} fontWeight={800} fill={INK}>
         {rightTag}
+        <tspan fontSize={8} dy={2}>
+          {no + 1}
+        </tspan>
+      </text>
+      {marker && <path d={`M ${cx - 5} ${y + h - 12} L ${cx + 5} ${y + h - 12} L ${cx} ${y + h} Z`} fill={INK} />}
+    </g>
+  );
+}
+
+/** The small ruler printed above each wheel, with − and + at its ends. */
+function MiniRuler({ x, y, w, flip }: { x: number; y: number; w: number; flip?: boolean }) {
+  const ticks: ReactNode[] = [];
+  const n = 18;
+  for (let i = 0; i <= n; i++) {
+    const tx = x + (i / n) * w;
+    ticks.push(
+      <line key={i} x1={tx} y1={y} x2={tx} y2={y + (i % 3 === 0 ? 6 : 3.5)} stroke={INK} strokeWidth={0.5} />,
+    );
+  }
+  return (
+    <g>
+      <line x1={x} y1={y} x2={x + w} y2={y} stroke={INK} strokeWidth={0.8} />
+      {ticks}
+      <text x={x - 6} y={y + 4} fontSize={10} fontWeight={800} fill={INK} textAnchor="middle">
+        {flip ? "+" : "−"}
+      </text>
+      <text x={x + w + 6} y={y + 4} fontSize={10} fontWeight={800} fill={INK} textAnchor="middle">
+        {flip ? "−" : "+"}
       </text>
     </g>
   );
 }
 
-/** A side-view tire (single) or dual pair. */
-function Wheel({ x, y, dual }: { x: number; y: number; dual?: boolean }) {
-  const th = 74;
-  const tw = 15;
-  const ry = 6;
+/** A tyre seen from the front: tall rounded casing with the projector eyes. */
+function Tyre({ x, y, h, dual }: { x: number; y: number; h: number; dual?: boolean }) {
+  const w = 17;
+  const one = (ox: number) => (
+    <g key={ox}>
+      <rect x={ox} y={y} width={w} height={h} rx={7} fill="none" stroke={INK} strokeWidth={LINE} />
+      <rect x={ox + 3} y={y + 6} width={w - 6} height={h - 12} rx={4} fill="none" stroke={INK} strokeWidth={0.4} />
+    </g>
+  );
   return (
     <g>
-      <rect x={x} y={y} width={tw} height={th} rx={ry} fill="none" stroke={INK} strokeWidth={1.1} />
-      {dual && <rect x={x + tw + 3} y={y} width={tw} height={th} rx={ry} fill="none" stroke={INK} strokeWidth={1.1} />}
+      {one(x)}
+      {dual && one(x + w + 2)}
+      <circle cx={x + (dual ? w + 1 : w / 2)} cy={y - 4} r={3} fill="none" stroke={INK} strokeWidth={0.8} />
+      <circle cx={x + (dual ? w + 1 : w / 2)} cy={y + h + 4} r={3} fill="none" stroke={INK} strokeWidth={0.8} />
     </g>
   );
 }
 
-/** TOE-IN / TOE-OUT box with top-view tire pairs; active half tinted. */
-function ToeBox({ x, y, axle, tr }: { x: number; y: number; axle: AxleComputed; tr: Tr }) {
-  const w = 92;
-  const h = 60;
+/** The TOE-IN / TOE-OUT box with its four tyre glyphs. */
+function ToeBox({ x, y, w, h, axle }: { x: number; y: number; w: number; h: number; axle: AxleComputed }) {
   const midY = y + h / 2;
+  const c = vfill(axle.toeVerdict.status);
   const inActive = axle.toeKind === "toe-in";
   const outActive = axle.toeKind === "toe-out";
-  const c = vfill(axle.toeVerdict.status);
   return (
     <g>
-      <rect x={x} y={y} width={w} height={h} fill={c.fill} stroke={INK} strokeWidth={0.9} />
-      <line x1={x} y1={midY} x2={x + w} y2={midY} stroke={INK} strokeWidth={0.6} strokeDasharray="2 2" />
-      <text x={x + 5} y={y + 11} fontSize={6.5} fontWeight={inActive ? 700 : 400} fill={inActive ? c.text : GREY}>
-        + {tr("Toe-in").toUpperCase()}
+      <rect x={x} y={y} width={w} height={h} fill={c.fill} stroke={INK} strokeWidth={LINE} />
+      <line x1={x + 6} y1={midY} x2={x + w - 6} y2={midY} stroke={INK} strokeWidth={HAIR} strokeDasharray="3 2" />
+
+      <text x={x + 8} y={y + 13} fontSize={7} fontWeight={800} fill={INK}>
+        +
       </text>
-      <ToeTires cx={x + w / 2} cy={y + 20} kind="in" active={inActive} />
-      <ToeTires cx={x + w / 2} cy={midY + 12} kind="out" active={outActive} />
-      <text x={x + 5} y={y + h - 4} fontSize={6.5} fontWeight={outActive ? 700 : 400} fill={outActive ? c.text : GREY}>
-        − {tr("Toe-out").toUpperCase()}
+      <text x={x + w / 2} y={y + 13} fontSize={7.5} fontWeight={700} fill={INK} textAnchor="middle">
+        TOE-IN
       </text>
-      <text
-        x={x + w - 5}
-        y={midY - 3}
-        fontSize={9}
-        fontWeight={700}
+      <text x={x + w - 10} y={y + 13} fontSize={7} fontWeight={800} fill={INK}>
+        +
+      </text>
+      <ToeTyres cx={x + w / 2} cy={y + 25} kind="in" active={inActive} width={w} />
+
+      <ToeTyres cx={x + w / 2} cy={y + h - 27} kind="out" active={outActive} width={w} />
+      <text x={x + 8} y={y + h - 6} fontSize={7} fontWeight={800} fill={INK}>
+        −
+      </text>
+      <text x={x + w / 2} y={y + h - 32} fontSize={7.5} fontWeight={700} fill={INK} textAnchor="middle">
+        TOE-OUT
+      </text>
+      <text x={x + w - 10} y={y + h - 6} fontSize={7} fontWeight={800} fill={INK}>
+        −
+      </text>
+
+      {/* the value is written between the tyres, on the active half's line */}
+      <DotLine x1={x + w / 2 - 26} x2={x + w / 2 + 26} y={inActive ? midY - 4 : y + h - 13} />
+      <Val
+        x={x + w / 2}
+        y={inActive ? midY - 6 : y + h - 15}
+        value={axle.toe !== undefined ? withSign(axle.toe, 2) : ""}
+        anchor="middle"
         fill={c.text}
-        textAnchor="end"
-        style={{ fontFamily: "var(--font-geist-mono, monospace)" }}
-      >
-        {axle.toe !== undefined ? `${withSign(axle.toe, 2)}` : "—"}
-      </text>
-      <text x={x + w - 5} y={midY + 8} fontSize={5} fill={GREY} textAnchor="end">
-        mm/m
-      </text>
+        size={9}
+      />
     </g>
   );
 }
 
-function ToeTires({ cx, cy, kind, active }: { cx: number; cy: number; kind: "in" | "out"; active: boolean }) {
-  const col = active ? INK : "#9ca3af";
-  const gap = 12;
-  const lean = kind === "in" ? 3 : -3;
-  const tire = (mx: number) => {
-    const topX = mx - lean;
+function ToeTyres({
+  cx,
+  cy,
+  kind,
+  active,
+  width,
+}: {
+  cx: number;
+  cy: number;
+  kind: "in" | "out";
+  active: boolean;
+  width: number;
+}) {
+  const col = active ? INK : "#8b8b8b";
+  const gap = width / 2 - 20;
+  const lean = kind === "in" ? 2.6 : -2.6;
+  const tyre = (mx: number, mirror: boolean) => {
+    const l = mirror ? -lean : lean;
     return (
-      <path d={`M ${topX - 2} ${cy - 6} L ${topX + 2} ${cy - 6} L ${mx + 2} ${cy + 6} L ${mx - 2} ${cy + 6} Z`} fill={col} />
+      <path
+        key={mx}
+        d={`M ${mx - l - 2.6} ${cy - 8} L ${mx - l + 2.6} ${cy - 8} L ${mx + l + 2.6} ${cy + 8} L ${mx + l - 2.6} ${cy + 8} Z`}
+        fill={col}
+      />
     );
   };
   return (
     <g>
-      {tire(cx - gap)}
-      {tire(cx + gap)}
-    </g>
-  );
-}
-
-/** Small rolling-direction indicator: "Cn/Dm" with sign. */
-function RollTag({ x, y, label, value }: { x: number; y: number; label: string; value?: number }) {
-  const sign = value === undefined ? "" : value > 0 ? "+" : value < 0 ? "−" : "";
-  return (
-    <g>
-      <text x={x} y={y} fontSize={8} fill={INK}>
-        <tspan fontWeight={700}>{label}</tspan>
-        <tspan>/Dm</tspan>
-      </text>
-      <text x={x + 44} y={y} fontSize={9} fontWeight={700} fill={INK} style={{ fontFamily: "var(--font-geist-mono, monospace)" }}>
-        {sign}
-        {value !== undefined ? round(Math.abs(value), 1) : ""}
-      </text>
+      {tyre(cx - gap, false)}
+      {tyre(cx + gap, true)}
     </g>
   );
 }
@@ -439,232 +509,447 @@ function RollTag({ x, y, label, value }: { x: number; y: number; label: string; 
 /* Header                                                              */
 /* ------------------------------------------------------------------ */
 
-function Header({ job, status, y, tr }: { job: Job; status: VerdictStatus; y: number; tr: Tr }) {
-  const c = vfill(status);
+function Header({ job, y }: { job: Job; y: number }) {
   const col1: [string, string][] = [
-    [tr("Order N°"), job.header.orderNo ?? ""],
-    [tr("Reg. N°"), job.header.regNo ?? ""],
-    [tr("Date"), fmtDate(job.header.date)],
-    [tr("Miles/Km"), job.header.milesKm ?? ""],
+    ["Order N°", job.header.orderNo ?? ""],
+    ["Reg. N°", job.header.regNo ?? ""],
+    ["Date", job.header.date ? fmtDate(job.header.date) : ""],
+    ["Miles/Km", job.header.milesKm ?? ""],
   ];
   const col2: [string, string][] = [
-    [tr("Type"), job.header.type ?? ""],
-    [tr("Owner"), job.header.owner ?? ""],
-    [tr("Sign"), job.header.sign ?? ""],
-    [tr("Notes"), job.header.notes ?? ""],
+    ["Type", job.header.type ?? ""],
+    ["Owner", job.header.owner ?? ""],
+    ["Sign", job.header.sign ?? ""],
+    ["Notes", job.header.notes ?? ""],
   ];
-  const field = (fx: number, fy: number, fw: number, label: string, value: string) => (
+  const field = (fx: number, fy: number, fw: number, label: string, value: string, labelW: number) => (
     <g>
-      <text x={fx} y={fy} fontSize={8.5} fill={INK}>
+      <text x={fx} y={fy} fontSize={10} fill={INK}>
         {label}
       </text>
-      <line x1={fx + 58} y1={fy + 2} x2={fx + fw} y2={fy + 2} stroke={GREY} strokeWidth={0.5} strokeDasharray="2 2" />
-      <text x={fx + 62} y={fy} fontSize={9} fill={INK} style={{ fontFamily: "var(--font-geist-mono, monospace)" }}>
-        {value}
-      </text>
+      <DotLine x1={fx + labelW} x2={fx + fw} y={fy + 2} />
+      <Val x={fx + labelW + 4} y={fy} value={value} anchor="start" size={9.5} />
     </g>
   );
+
   return (
     <g>
-      {/* JOSAM mark */}
-      <rect x={M} y={y} width={26} height={22} fill="none" stroke={INK} strokeWidth={1.4} />
-      <circle cx={M + 8} cy={y + 16} r={2.4} fill={INK} />
-      <circle cx={M + 18} cy={y + 16} r={2.4} fill={INK} />
-      <rect x={M + 6} y={y + 6} width={14} height={5} fill={INK} transform={`rotate(-12 ${M + 13} ${y + 8})`} />
-      <text x={M + 34} y={y + 19} fontSize={22} fontWeight={800} fill={INK} letterSpacing={0.5}>
-        JOSAM
-      </text>
-      <text x={SHEET_W - M} y={y - 2} fontSize={7} fill={GREY} textAnchor="end">
+      <JosamMark x={M} y={y} />
+      <text x={SHEET_W - M} y={y + 6} fontSize={6.5} fill={INK} textAnchor="end">
         www.josam.se
       </text>
 
       {col1.map(([l, v], i) => (
-        <g key={`c1${i}`}>{field(M + 150, y + 6 + i * 15, 150, l, v)}</g>
+        <g key={`c1${i}`}>{field(M + 216, y + 18 + i * 16, 130, l, v, 56)}</g>
       ))}
       {col2.map(([l, v], i) => (
-        <g key={`c2${i}`}>{field(M + 330, y + 6 + i * 15, SHEET_W - M - (M + 330), l, v)}</g>
+        <g key={`c2${i}`}>{field(M + 386, y + 18 + i * 16, SHEET_W - M - (M + 386), l, v, 46)}</g>
       ))}
+    </g>
+  );
+}
 
-      {/* overall verdict chip */}
-      <rect x={M} y={y + 30} width={110} height={16} fill={c.fill} stroke={INK} strokeWidth={0.8} />
-      <text x={M + 55} y={y + 41} fontSize={8} fontWeight={700} fill={c.text} textAnchor="middle">
-        {status === "pass" ? tr("WITHIN TOLERANCE") : status === "fail" ? tr("OUT OF TOLERANCE") : tr("INCOMPLETE")}
+/** The boxed tipper-truck mark and wordmark. */
+function JosamMark({ x, y }: { x: number; y: number }) {
+  return (
+    <g>
+      <rect x={x} y={y} width={34} height={34} fill="none" stroke={INK} strokeWidth={2} />
+      <g transform={`translate(${x + 5} ${y + 6})`}>
+        <path d="M2 16 h20 v-4 h-20 z" fill={INK} />
+        <path d="M6 12 L10 3 L20 6 L17 12 Z" fill={INK} />
+        <circle cx={7} cy={19} r={3} fill="none" stroke={INK} strokeWidth={1.6} />
+        <circle cx={18} cy={19} r={3} fill="none" stroke={INK} strokeWidth={1.6} />
+      </g>
+      <text x={x + 44} y={y + 28} fontSize={30} fontWeight={800} fill={INK} letterSpacing={-0.5}>
+        JOSAM
       </text>
     </g>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* Turn diagram (truck / steering axle)                               */
+/* Turn diagram (truck / steering axle)                                */
 /* ------------------------------------------------------------------ */
 
-function TurnDiagram({ axle, job, y, tr }: { axle: AxleComputed; job: Job; y: number; tr: Tr }) {
-  const s = job.axles[axle.index]?.steering ?? {};
-  const st = axle.steering;
-  const cx = SHEET_W / 2;
-  const arcY = y + 74;
-  const r = 62;
-
-  const arc = `M ${cx - r} ${arcY} A ${r} ${r} 0 0 1 ${cx + r} ${arcY}`;
-  const degTicks: ReactNode[] = [];
-  for (let d = 0; d <= 60; d += 10) {
-    for (const sgn of [-1, 1] as const) {
-      const ang = Math.PI / 2 - (sgn * d * Math.PI) / 180;
-      const x2 = cx + Math.cos(ang) * r;
-      const yy2 = arcY - Math.sin(ang) * r;
-      const x1 = cx + Math.cos(ang) * (r - 6);
-      const yy1 = arcY - Math.sin(ang) * (r - 6);
-      degTicks.push(<line key={`${sgn}-${d}`} x1={x1} y1={yy1} x2={x2} y2={yy2} stroke={INK} strokeWidth={0.6} />);
-      if (d % 20 === 0 && d !== 0) {
-        const lx = cx + Math.cos(ang) * (r + 8);
-        const ly = arcY - Math.sin(ang) * (r + 8);
-        degTicks.push(
-          <text key={`t${sgn}-${d}`} x={lx} y={ly} fontSize={5.5} fill={GREY} textAnchor="middle">
-            {d}
-          </text>,
-        );
-      }
-    }
-  }
-
-  const sideBox = (bx: number, mirror: boolean) => (
-    <g>
-      <text x={bx} y={y - 2} fontSize={5.6} fill={GREY}>
-        {mirror ? "HÖGER · RIGHT · DROIT" : "VÄNSTER · LEFT · GAUCHE"}
-      </text>
-      <rect x={bx} y={y + 2} width={44} height={30} fill="none" stroke={INK} strokeWidth={0.9} />
-      <text x={bx + 22} y={y + 22} fontSize={16} fontWeight={800} fill={INK} textAnchor="middle">
-        20°
-      </text>
-      <LabelValue
-        x={bx}
-        y={y + 36}
-        w={64}
-        h={15}
-        label="°"
-        value={
-          mirror
-            ? s.turnRight?.opposite !== undefined
-              ? `${s.turnRight?.opposite}°`
-              : "—"
-            : s.turnLeft?.opposite !== undefined
-              ? `${s.turnLeft?.opposite}°`
-              : "—"
-        }
-      />
-      <LabelValue
-        x={bx}
-        y={y + 54}
-        w={64}
-        h={15}
-        label="Δ"
-        status={st?.tootVerdict.status ?? "unknown"}
-        value={
-          mirror
-            ? st?.turnRightDiff !== undefined
-              ? `${st?.turnRightDiff}°`
-              : "—"
-            : st?.turnLeftDiff !== undefined
-              ? `${st?.turnLeftDiff}°`
-              : "—"
-        }
-      />
-    </g>
-  );
+function TurnDiagram({ axle, job, y }: { axle?: AxleComputed; job: Job; y: number }) {
+  const s = axle ? (job.axles[axle.index]?.steering ?? {}) : {};
+  const st = axle?.steering;
+  const boxW = 92;
+  const leftX = M;
+  const rightX = SHEET_W - M - boxW;
 
   return (
     <g>
-      <text x={cx} y={y + 4} fontSize={6.5} fontWeight={600} fill={GREY} textAnchor="middle">
-        KURVWINKELDIFFERENS · {tr("TOE-OUT ON TURN")} · DIFFÉRENCE DE COURBE D&apos;ANGLE
-      </text>
-      {sideBox(M, false)}
-      {sideBox(SHEET_W - M - 64, true)}
-      <path d={arc} fill="none" stroke={INK} strokeWidth={0.9} />
-      {degTicks}
-      <line x1={cx} y1={arcY} x2={cx} y2={arcY - r} stroke={INK} strokeWidth={0.6} strokeDasharray="2 2" />
-      <text x={cx} y={y + 40} fontSize={6.5} fill={INK} textAnchor="middle">
-        {tr("MAX TURN")}
-      </text>
-      <text x={cx} y={y + 48} fontSize={5.5} fill={GREY} textAnchor="middle">
-        MAX SVÄNG · BRAQUAGE MAX
-      </text>
-      {(s.maxTurnLeft !== undefined || s.maxTurnRight !== undefined) && (
-        <text x={cx} y={arcY + 12} fontSize={7} fill={INK} textAnchor="middle" style={{ fontFamily: "var(--font-geist-mono, monospace)" }}>
-          L {s.maxTurnLeft ?? "—"}°   R {s.maxTurnRight ?? "—"}°
+      {/* block heading, four languages as printed */}
+      {["KURVVINKELDIFFERENS", "SPURDIFFERENSVINKEL", "TOE-OUT ON TURNS", "DIFFERENCE DE COURBE D'ANGLE"].map((l, i) => (
+        <text key={l} x={M} y={y + 8 + i * 8} fontSize={6.6} fontWeight={600} fill={INK}>
+          {l}
         </text>
+      ))}
+
+      <Protractor
+        y={y + 40}
+        maxLeft={s.maxTurnLeft}
+        maxRight={s.maxTurnRight}
+        leftVerdict={st?.maxTurnLeftVerdict.status ?? "unknown"}
+        rightVerdict={st?.maxTurnRightVerdict.status ?? "unknown"}
+      />
+
+      <TurnSide
+        x={leftX}
+        y={y + 44}
+        w={boxW}
+        first={["VÄNSTER", "LINKS", "LEFT", "GAUCHE"]}
+        second={["HÖGER", "RECHTS", "RIGHT", "DROIT"]}
+        reading={s.turnLeft?.opposite}
+        diff={st?.turnLeftDiff}
+        diffStatus={st?.tootVerdict.status ?? "unknown"}
+      />
+      <TurnSide
+        x={rightX}
+        y={y + 44}
+        w={boxW}
+        mirror
+        first={["HÖGER", "RECHTS", "RIGHT", "DROIT"]}
+        second={["VÄNSTER", "LINKS", "LEFT", "GAUCHE"]}
+        reading={s.turnRight?.opposite}
+        diff={st?.turnRightDiff}
+        diffStatus={st?.tootVerdict.status ?? "unknown"}
+      />
+    </g>
+  );
+}
+
+/** One side of the turn block: the 20° reference, the reading, and DIFF. */
+function TurnSide({
+  x,
+  y,
+  w,
+  first,
+  second,
+  reading,
+  diff,
+  diffStatus,
+  mirror,
+}: {
+  x: number;
+  y: number;
+  w: number;
+  first: string[];
+  second: string[];
+  reading?: number;
+  diff?: number;
+  diffStatus: VerdictStatus;
+  mirror?: boolean;
+}) {
+  const boxW = 56;
+  const labelX = mirror ? x : x + boxW + 4;
+  const boxX = mirror ? x + w - boxW : x;
+  const c = vfill(diffStatus);
+
+  const langs = (ly: number, lines: string[]) =>
+    lines.map((l, i) => (
+      <text key={l} x={labelX} y={ly + i * 7} fontSize={6.2} fontWeight={600} fill={INK}>
+        {l}
+      </text>
+    ));
+
+  return (
+    <g>
+      {/* reference angle */}
+      <rect x={boxX} y={y} width={boxW} height={26} fill="none" stroke={INK} strokeWidth={LINE} />
+      <text x={boxX + boxW / 2} y={y + 20} fontSize={19} fontWeight={800} fill={INK} textAnchor="middle">
+        20
+        <tspan fontSize={9} dy={-7}>
+          °
+        </tspan>
+      </text>
+      {langs(y + 6, first)}
+
+      {/* opposite-wheel reading */}
+      <rect x={boxX} y={y + 32} width={boxW} height={22} fill="none" stroke={INK} strokeWidth={LINE} />
+      <circle cx={boxX + boxW - 7} cy={y + 39} r={2.4} fill="none" stroke={INK} strokeWidth={0.7} />
+      <DotLine x1={boxX + 5} x2={boxX + boxW - 5} y={y + 49} />
+      <Val x={boxX + boxW - 6} y={y + 47} value={reading !== undefined ? String(reading) : ""} size={9} />
+      {langs(y + 38, second)}
+
+      <line x1={boxX} y1={y + 60} x2={boxX + boxW} y2={y + 60} stroke={INK} strokeWidth={1.6} />
+
+      {/* difference between the sides */}
+      <rect x={boxX} y={y + 66} width={boxW} height={22} fill={c.fill} stroke={INK} strokeWidth={LINE} />
+      <circle cx={boxX + boxW - 7} cy={y + 73} r={2.4} fill="none" stroke={INK} strokeWidth={0.7} />
+      <DotLine x1={boxX + 5} x2={boxX + boxW - 5} y={y + 83} />
+      <Val x={boxX + boxW - 6} y={y + 81} value={diff !== undefined ? String(round(diff, 1)) : ""} size={9} fill={c.text} />
+      <text x={labelX} y={y + 78} fontSize={7} fontWeight={700} fill={INK}>
+        DIFF.
+      </text>
+    </g>
+  );
+}
+
+/** The pair of turn-angle protractors with the steered wheels between them. */
+function Protractor({
+  y,
+  maxLeft,
+  maxRight,
+  leftVerdict,
+  rightVerdict,
+}: {
+  y: number;
+  maxLeft?: number;
+  maxRight?: number;
+  leftVerdict: VerdictStatus;
+  rightVerdict: VerdictStatus;
+}) {
+  const r = 62;
+  const axisY = y + r;
+  const lx = SHEET_W / 2 - 92;
+  const rx = SHEET_W / 2 + 92;
+
+  const dial = (cx: number, dir: 1 | -1) => {
+    const parts: ReactNode[] = [];
+    for (let d = 0; d <= 60; d += 10) {
+      const ang = (Math.PI / 2) + (dir * d * Math.PI) / 180;
+      const ox = cx + Math.cos(ang) * r;
+      const oy = axisY - Math.sin(ang) * r;
+      const ix = cx + Math.cos(ang) * (r - 7);
+      const iy = axisY - Math.sin(ang) * (r - 7);
+      parts.push(<line key={`t${d}`} x1={ix} y1={iy} x2={ox} y2={oy} stroke={INK} strokeWidth={0.7} />);
+      const tx = cx + Math.cos(ang) * (r + 9);
+      const ty = axisY - Math.sin(ang) * (r + 9);
+      parts.push(
+        <text
+          key={`n${d}`}
+          x={tx}
+          y={ty + 2}
+          fontSize={6}
+          fontWeight={600}
+          fill={INK}
+          textAnchor="middle"
+          transform={`rotate(${-dir * d} ${tx} ${ty})`}
+        >
+          {d}
+        </text>,
+      );
+    }
+    // 5° subdivisions
+    for (let d = 5; d < 60; d += 10) {
+      const ang = Math.PI / 2 + (dir * d * Math.PI) / 180;
+      parts.push(
+        <line
+          key={`s${d}`}
+          x1={cx + Math.cos(ang) * (r - 4)}
+          y1={axisY - Math.sin(ang) * (r - 4)}
+          x2={cx + Math.cos(ang) * r}
+          y2={axisY - Math.sin(ang) * r}
+          stroke={INK}
+          strokeWidth={0.5}
+        />,
+      );
+    }
+    const sweepStart = { x: cx, y: axisY - r };
+    const end = { x: cx + Math.cos(Math.PI / 2 + (dir * 60 * Math.PI) / 180) * r, y: axisY - Math.sin(Math.PI / 2 + (dir * 60 * Math.PI) / 180) * r };
+    return (
+      <g>
+        <path
+          d={`M ${sweepStart.x} ${sweepStart.y} A ${r} ${r} 0 0 ${dir === 1 ? 0 : 1} ${end.x} ${end.y}`}
+          fill="none"
+          stroke={INK}
+          strokeWidth={LINE}
+        />
+        <line x1={cx} y1={axisY} x2={cx} y2={axisY - r - 4} stroke={INK} strokeWidth={0.8} />
+        {parts}
+        {/* straight-ahead wheel (dashed) and steered wheel (solid) */}
+        <rect
+          x={cx - 9}
+          y={axisY - 40}
+          width={18}
+          height={54}
+          rx={7}
+          fill="none"
+          stroke={INK}
+          strokeWidth={0.8}
+          strokeDasharray="3 2"
+        />
+        <g transform={`rotate(${-dir * 32} ${cx} ${axisY})`}>
+          <rect x={cx - 9} y={axisY - 40} width={18} height={54} rx={7} fill="none" stroke={INK} strokeWidth={LINE} />
+        </g>
+        <circle cx={cx} cy={axisY} r={3.4} fill="none" stroke={INK} strokeWidth={LINE} />
+      </g>
+    );
+  };
+
+  const maxBox = (bx: number, value: number | undefined, status: VerdictStatus) => {
+    const c = vfill(status);
+    return (
+      <g>
+        <rect x={bx} y={y - 6} width={70} height={22} fill={c.fill} stroke={INK} strokeWidth={LINE} />
+        <circle cx={bx + 62} cy={y + 1} r={2.4} fill="none" stroke={INK} strokeWidth={0.7} />
+        <DotLine x1={bx + 5} x2={bx + 65} y={y + 11} />
+        <Val x={bx + 64} y={y + 9} value={value !== undefined ? String(value) : ""} size={9} fill={c.text} />
+      </g>
+    );
+  };
+
+  return (
+    <g>
+      {dial(lx, 1)}
+      {dial(rx, -1)}
+
+      {/* axle centreline and the steering linkage between the pivots */}
+      <line x1={lx - r - 6} y1={axisY} x2={rx + r + 6} y2={axisY} stroke={INK} strokeWidth={0.8} />
+      <path
+        d={`M ${lx} ${axisY} L ${lx + 14} ${axisY + 22} L ${rx - 14} ${axisY + 22} L ${rx} ${axisY}`}
+        fill="none"
+        stroke={INK}
+        strokeWidth={LINE}
+      />
+
+      {["MAX. SVÄNG", "MAX. LENKEINSCHLAG", "MAX. TURN", "BRAQUAGE MAX."].map((l, i) => (
+        <text key={l} x={SHEET_W / 2} y={axisY - 48 + i * 9.5} fontSize={7.4} fontWeight={600} fill={INK} textAnchor="middle">
+          {l}
+        </text>
+      ))}
+
+      {maxBox(lx - r - 78, maxLeft, leftVerdict)}
+      {maxBox(rx + r + 8, maxRight, rightVerdict)}
+    </g>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Axle row                                                            */
+/* ------------------------------------------------------------------ */
+
+function AxleRow({
+  axle,
+  job,
+  y,
+  h,
+  scaleNo,
+}: {
+  axle: AxleComputed;
+  job: Job;
+  y: number;
+  h: number;
+  scaleNo: number;
+}) {
+  const raw = job.axles[axle.index] ?? EMPTY_RAW;
+  const panelW = 162;
+  const leftX = M;
+  const rightX = SHEET_W - M - panelW;
+  const steering = axle.isSteering;
+  const cx = SHEET_W / 2;
+
+  const wheelTop = y + 58;
+  const wheelH = h - 84;
+  const axisY = wheelTop + wheelH / 2;
+  const tyreW = steering ? 17 : 36;
+  // A non-steered row prints the VÄNSTER/HÖGER sign labels between the wheel
+  // and the panel, so it needs a wider gutter on the right.
+  const gutter = steering ? 22 : 54;
+  const lWheelX = leftX + panelW + 22;
+  const rWheelX = rightX - gutter - tyreW;
+
+  return (
+    <g>
+      <SidePanel x={leftX} y={y + 2} w={panelW} axle={axle} raw={raw} side="left" steering={steering} scaleNo={scaleNo} />
+      <SidePanel
+        x={rightX}
+        y={y + 2}
+        w={panelW}
+        axle={axle}
+        raw={raw}
+        side="right"
+        steering={steering}
+        scaleNo={scaleNo}
+        mirror
+      />
+
+      {/* the small scale and its sketch box, inboard of each wheel as printed */}
+      <MiniRuler x={lWheelX + 14} y={y + 12} w={74} />
+      <SketchBox x={lWheelX + 10} y={y + 22} w={82} h={30} />
+      <MiniRuler x={rWheelX + tyreW - 88} y={y + 12} w={74} flip />
+      <SketchBox x={rWheelX + tyreW - 92} y={y + 22} w={82} h={30} />
+
+      {/* rolling direction of each wheel, written beside the toe box */}
+      <RollLine x={cx - 56} y={y + 34} label={axle.wheelNo.left} value={axle.cLeft} />
+      <RollLine x={cx - 56} y={y + 52} label={axle.wheelNo.right} value={axle.cRight} />
+
+      {/* wheels, centreline and toe box */}
+      <line x1={lWheelX - 16} y1={axisY} x2={rWheelX + tyreW + 16} y2={axisY} stroke={INK} strokeWidth={0.8} />
+      <Tyre x={lWheelX} y={wheelTop} h={wheelH} dual={!steering} />
+      <Tyre x={rWheelX} y={wheelTop} h={wheelH} dual={!steering} />
+      <text x={lWheelX + tyreW / 2} y={axisY - 8} fontSize={12} fontWeight={800} fill={INK} textAnchor="middle">
+        C
+        <tspan fontSize={7.5} dy={2}>
+          {axle.wheelNo.left}
+        </tspan>
+      </text>
+      <text x={rWheelX + tyreW / 2} y={axisY - 8} fontSize={12} fontWeight={800} fill={INK} textAnchor="middle">
+        C
+        <tspan fontSize={7.5} dy={2}>
+          {axle.wheelNo.right}
+        </tspan>
+      </text>
+
+      <ToeBox x={cx - 56} y={axisY - 38} w={112} h={76} axle={axle} />
+
+      {/* steering linkage on the steered axle, as printed */}
+      {steering && (
+        <path
+          d={`M ${lWheelX + tyreW / 2} ${axisY} L ${lWheelX + tyreW / 2 + 14} ${axisY + 18} L ${rWheelX + tyreW / 2 - 14} ${axisY + 18} L ${rWheelX + tyreW / 2} ${axisY}`}
+          fill="none"
+          stroke={INK}
+          strokeWidth={0.8}
+        />
+      )}
+
+      {/* which way a non-steered axle is offset */}
+      {!steering && (
+        <g>
+          {["VÄNSTER", "LINKS", "LEFT", "GAUCHE"].map((l, i) => (
+            <text key={l} x={rightX - 8} y={y + 34 + i * 7} fontSize={5.6} fontWeight={600} fill={INK} textAnchor="end">
+              {i === 0 ? `${l}  +` : l}
+            </text>
+          ))}
+          {["HÖGER", "RECHTS", "RIGHT", "DROIT"].map((l, i) => (
+            <text key={l} x={rightX - 8} y={y + h - 36 + i * 7} fontSize={5.6} fontWeight={600} fill={INK} textAnchor="end">
+              {i === 0 ? `${l}  −` : l}
+            </text>
+          ))}
+        </g>
       )}
     </g>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Axle row                                                           */
-/* ------------------------------------------------------------------ */
+/** The blank rectangle the sheet leaves for sketching the laser trace. */
+function SketchBox({ x, y, w, h }: { x: number; y: number; w: number; h: number }) {
+  return <rect x={x} y={y} width={w} height={h} fill="none" stroke={INK} strokeWidth={LINE} />;
+}
 
-function AxleRow({ axle, job, y, h, tr }: { axle: AxleComputed; job: Job; y: number; h: number; tr: Tr }) {
-  const raw = job.axles[axle.index] ?? EMPTY_RAW;
-  const leftX = M;
-  const panelW = 150;
-  const rightX = SHEET_W - M - panelW;
-  const centreX = leftX + panelW;
-  const centreW = rightX - centreX;
-  const steering = axle.isSteering;
-
+/** "C₁/Dm ……… ±" — the wheel's rolling direction, as written on the sheet. */
+function RollLine({ x, y, label, value }: { x: number; y: number; label: number; value?: number }) {
+  const n = label;
   return (
     <g>
-      <line x1={M} y1={y + h} x2={SHEET_W - M} y2={y + h} stroke="#d1d5db" strokeWidth={0.5} />
-
-      <SidePanel x={leftX} y={y + 4} w={panelW} axle={axle} raw={raw} side="left" steering={steering} />
-
-      <g>
-        <text x={centreX + centreW / 2} y={y + 12} fontSize={7.5} fontWeight={600} fill={GREY} textAnchor="middle">
-          {`${tr("Axle")} ${axle.index + 1}${steering ? ` · ${tr("steering")}` : ""}`}
-        </text>
-        <g transform={`translate(${centreX + 8}, ${y + 26})`}>
-          <RollTag x={0} y={0} label={`C${axle.wheelNo.left}`} value={axle.cLeft} />
-        </g>
-        <g transform={`translate(${centreX + 8}, ${y + 38})`}>
-          <RollTag x={0} y={0} label={`C${axle.wheelNo.right}`} value={axle.cRight} />
-        </g>
-        {/* Result: EQUAL / TOE-IN / TOE-OUT (matches the geometrieTir form) */}
-        <text x={centreX + 8} y={y + 50} fontSize={6.5} fill={GREY}>
-          {tr("Result")}:{" "}
-          <tspan fontWeight={700} fill={vfill(axle.toeVerdict.status).text}>
-            {axle.toeKind === "unknown"
-              ? "—"
-              : tr(axle.toeKind === "toe-in" ? "TOE-IN" : axle.toeKind === "toe-out" ? "TOE-OUT" : "EQUAL")}
-          </tspan>
-        </text>
-
-        <Wheel x={centreX + 24} y={y + 44} dual={!steering} />
-        <g transform={`translate(0, ${y})`}>
-          <ToeBox x={centreX + centreW / 2 - 46} y={44} axle={axle} tr={tr} />
-        </g>
-        <Wheel x={rightX - (steering ? 39 : 57)} y={y + 44} dual={!steering} />
-        <text x={centreX + 24} y={y + h - 4} fontSize={7} fill={GREY}>
-          C{axle.wheelNo.left}
-        </text>
-        <text x={rightX - (steering ? 39 : 57)} y={y + h - 4} fontSize={7} fill={GREY}>
-          C{axle.wheelNo.right}
-        </text>
-
-        {steering && (
-          <line x1={centreX + 40} y1={y + 80} x2={rightX - 24} y2={y + 80} stroke={INK} strokeWidth={0.6} strokeDasharray="3 2" />
-        )}
-
-        {!steering && (
-          <g>
-            <text x={rightX - 2} y={y + 40} fontSize={5.4} fill={GREY} textAnchor="end">
-              VÄNSTER · {tr("Left").toUpperCase()} +
-            </text>
-            <text x={rightX - 2} y={y + h - 16} fontSize={5.4} fill={GREY} textAnchor="end">
-              HÖGER · {tr("Right").toUpperCase()} −
-            </text>
-          </g>
-        )}
-      </g>
-
-      <SidePanel x={rightX} y={y + 4} w={panelW} axle={axle} raw={raw} side="right" steering={steering} />
+      <text x={x} y={y} fontSize={12} fontWeight={800} fill={INK}>
+        C
+        <tspan fontSize={8} dy={2}>
+          {n}
+        </tspan>
+        <tspan fontSize={12} dy={-2}>
+          /
+        </tspan>
+        <tspan fontSize={11}>D</tspan>
+        <tspan fontSize={7} dy={2}>
+          m
+        </tspan>
+      </text>
+      <DotLine x1={x + 56} x2={x + 104} y={y + 1} />
+      <Val x={x + 102} y={y - 1} value={value !== undefined ? String(round(Math.abs(value), 1)) : ""} size={9} />
+      <PlusMinus x={x + 114} y={y - 3} />
     </g>
   );
 }
@@ -677,6 +962,8 @@ function SidePanel({
   raw,
   side,
   steering,
+  scaleNo,
+  mirror,
 }: {
   x: number;
   y: number;
@@ -685,80 +972,118 @@ function SidePanel({
   raw: Job["axles"][number];
   side: "left" | "right";
   steering: boolean;
+  scaleNo: number;
+  mirror?: boolean;
 }) {
   const wheel = side === "left" ? axle.left : axle.right;
   const rawWheel = raw[side];
   const cNo = side === "left" ? axle.wheelNo.left : axle.wheelNo.right;
   const cVal = side === "left" ? axle.cLeft : axle.cRight;
-  const sub = side === "left" ? "1" : "2";
-  const bw = w;
+  const sub = String(side === "left" ? scaleNo : scaleNo + 1);
+  const c = vfill(axle.toeVerdict.status);
 
   let cy = y;
   const rows: ReactNode[] = [];
 
   rows.push(
-    <LabelValue key="A" x={x} y={cy} w={bw} label={`A${sub}`} value={rawWheel.A !== undefined ? String(rawWheel.A) : "—"} />,
+    <ScaleBox key="A" x={x} y={cy} w={w} tag="A" sub={sub} value={num(rawWheel.A, 1)} mirror={mirror} />,
   );
-  cy += 18;
+  cy += 20;
   rows.push(
-    <LabelValue key="B" x={x} y={cy} w={bw} label={`B${sub}`} value={rawWheel.B !== undefined ? String(rawWheel.B) : "—"} />,
+    <ScaleBox key="B" x={x} y={cy} w={w} tag="B" sub={sub} value={num(rawWheel.B, 1)} mirror={mirror} />,
   );
-  cy += 18;
-  rows.push(
-    <LabelValue key="C" x={x} y={cy} w={bw} label={`C${cNo}`} value={cVal !== undefined ? `${withSign(cVal)} :Dm` : "—"} />,
-  );
-  cy += 22;
+  cy += 20;
 
+  // C row: "C₁ ± ……… : Dm ……… =" (mirrored on the right-hand panel)
+  const ch = 24;
+  rows.push(
+    <g key="C">
+      <rect x={x} y={cy} width={w} height={ch} fill={c.fill} stroke={INK} strokeWidth={LINE} />
+      {mirror ? (
+        <>
+          <text x={x + w - 8} y={cy + ch / 2 + 5} fontSize={13} fontWeight={800} fill={INK} textAnchor="end">
+            C
+            <tspan fontSize={8} dy={2}>
+              {cNo}
+            </tspan>
+          </text>
+          <PlusMinus x={x + w - 32} y={cy + 11} />
+          <text x={x + w - 48} y={cy + ch / 2 + 4} fontSize={9} fill={INK} textAnchor="end">
+            :
+          </text>
+          <text x={x + 26} y={cy + ch / 2 + 4} fontSize={11} fontWeight={700} fill={INK}>
+            = D
+            <tspan fontSize={7} dy={2}>
+              m
+            </tspan>
+          </text>
+          <DotLine x1={x + 62} x2={x + w - 54} y={cy + ch - 7} />
+          <Val x={x + 66} y={cy + ch - 9} value={cVal !== undefined ? String(round(Math.abs(cVal), 1)) : ""} anchor="start" fill={c.text} />
+        </>
+      ) : (
+        <>
+          <text x={x + 8} y={cy + ch / 2 + 5} fontSize={13} fontWeight={800} fill={INK}>
+            C
+            <tspan fontSize={8} dy={2}>
+              {cNo}
+            </tspan>
+          </text>
+          <PlusMinus x={x + 32} y={cy + 11} />
+          <text x={x + w - 20} y={cy + ch / 2 + 4} fontSize={11} fontWeight={700} fill={INK} textAnchor="end">
+            : D
+            <tspan fontSize={7} dy={2}>
+              m
+            </tspan>
+          </text>
+          <DotLine x1={x + 44} x2={x + w - 58} y={cy + ch - 7} />
+          <Val x={x + w - 60} y={cy + ch - 9} value={cVal !== undefined ? String(round(Math.abs(cVal), 1)) : ""} fill={c.text} />
+          <rect x={x + w - 12} y={cy + 4} width={5} height={5} fill={INK} />
+        </>
+      )}
+    </g>,
+  );
+  cy += ch + 3;
+
+  // Camber (+ KPI on a steered axle)
+  const halfW = (w - 3) / 2;
+  rows.push(
+    <SignedBox
+      key="camber"
+      x={x}
+      y={cy}
+      w={steering ? halfW : w}
+      h={42}
+      lines={["CAMBER", "STURZ", "CARROSSAGE"]}
+      value={rawWheel.camber ? fmtAngle(rawWheel.camber) : ""}
+      status={wheel.camberVerdict.status}
+    />,
+  );
   if (steering) {
-    const halfW = (bw - 4) / 2;
     rows.push(
-      <MeasureBox
-        key="camber"
-        x={x}
-        y={cy}
-        w={halfW}
-        h={30}
-        lines={["Camber", "Sturz", "Carross."]}
-        value={rawWheel.camber ? fmtAngle(rawWheel.camber) : "—"}
-        status={wheel.camberVerdict.status}
-      />,
-    );
-    rows.push(
-      <MeasureBox
+      <SignedBox
         key="kpi"
-        x={x + halfW + 4}
+        x={x + halfW + 3}
         y={cy}
         w={halfW}
-        h={30}
-        lines={["KPI", "Spreiz.", "Pivots"]}
-        value={rawWheel.kpi ? fmtAngle(rawWheel.kpi) : "—"}
+        h={42}
+        lines={["KPI", "SPREIZUNG", "INCLIN. PIVOTS"]}
+        value={rawWheel.kpi ? fmtAngle(rawWheel.kpi) : ""}
         status={wheel.kpiVerdict.status}
       />,
     );
-    cy += 34;
+    cy += 45;
     rows.push(
-      <MeasureBox
+      <SignedBox
         key="caster"
         x={x}
         y={cy}
-        w={bw}
+        w={w}
         h={26}
-        lines={["Caster", "Nachlauf", "Chasse"]}
-        value={rawWheel.caster ? fmtAngle(rawWheel.caster) : "—"}
+        lines={["CASTER", "NACHLAUF", "CHASSE"]}
+        value={rawWheel.caster ? fmtAngle(rawWheel.caster) : ""}
         status={wheel.casterVerdict.status}
-      />,
-    );
-  } else {
-    rows.push(
-      <MeasureBox
-        key="camber"
-        x={x}
-        y={cy}
-        w={bw}
-        h={30}
-        lines={["Camber", "Sturz", "Carrossage"]}
-        value={rawWheel.camber ? fmtAngle(rawWheel.camber) : "—"}
-        status={wheel.camberVerdict.status}
+        inline
+        signRight={mirror}
       />,
     );
   }
@@ -766,67 +1091,215 @@ function SidePanel({
   return <g>{rows}</g>;
 }
 
-/* ------------------------------------------------------------------ */
-/* D box + out-of-square                                              */
-/* ------------------------------------------------------------------ */
-
-function DBox({ x, y, d, top, bot }: { x: number; y: number; d: number; top: string; bot: string }) {
-  const w = 96;
-  const h = 28;
+/** A measurement box with the form's stacked ± and its dotted write-on lines. */
+function SignedBox({
+  x,
+  y,
+  w,
+  h,
+  lines,
+  value,
+  status,
+  inline,
+  signRight,
+}: {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  lines: string[];
+  value: string;
+  status: VerdictStatus;
+  /** Labels beside the sign rather than above it (the CASTER box). */
+  inline?: boolean;
+  signRight?: boolean;
+}) {
+  const c = vfill(status);
+  const signX = signRight ? x + w - 12 : x + 10;
+  const textX = signRight ? x + 6 : x + 22;
   return (
     <g>
-      <rect x={x} y={y} width={w} height={h} fill="#fff" stroke={INK} strokeWidth={0.8} />
-      <text x={x + 4} y={y + 11} fontSize={7} fill={INK}>
-        {top}
+      <rect x={x} y={y} width={w} height={h} fill={c.fill} stroke={INK} strokeWidth={LINE} />
+      {inline ? (
+        <>
+          {lines.map((l, i) => (
+            <text key={l} x={textX} y={y + 9 + i * 6.6} fontSize={5.8} fontWeight={600} fill={INK}>
+              {l}
+            </text>
+          ))}
+          <PlusMinus x={signX} y={y + 11} size={8} />
+          <DotLine x1={signRight ? x + w - 62 : x + 62} x2={signRight ? x + w - 22 : x + w - 6} y={y + h - 6} />
+          <Val x={signRight ? x + w - 24 : x + w - 8} y={y + h - 8} value={value} fill={c.text} size={8.5} />
+        </>
+      ) : (
+        <>
+          {lines.map((l, i) => (
+            <text key={l} x={x + 4} y={y + 8 + i * 6.6} fontSize={5.8} fontWeight={600} fill={INK}>
+              {l}
+            </text>
+          ))}
+          <PlusMinus x={x + 8} y={y + h - 15} size={8} />
+          <DotLine x1={x + 18} x2={x + w - 4} y={y + h - 4} />
+          <Val x={x + w - 5} y={y + h - 6} value={value} fill={c.text} size={8.5} />
+        </>
+      )}
+    </g>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* D box + out-of-square                                               */
+/* ------------------------------------------------------------------ */
+
+function DBox({ x, y, d, no }: { x: number; y: number; d: number; no: number }) {
+  const w = 104;
+  const h = 44;
+  const sub = `${no},${no + 1}`;
+  return (
+    <g>
+      <rect x={x} y={y} width={w} height={h} fill="#fff" stroke={INK} strokeWidth={1.4} />
+      <text x={x + 6} y={y + 17} fontSize={13} fontWeight={800} fill={INK}>
+        A
+        <tspan fontSize={7} dy={2}>
+          {sub}
+        </tspan>
       </text>
-      <text x={x + 4} y={y + 24} fontSize={7} fill={INK}>
-        {bot}
+      <text x={x + 6} y={y + h - 5} fontSize={13} fontWeight={800} fill={INK}>
+        B
+        <tspan fontSize={7} dy={2}>
+          {sub}
+        </tspan>
       </text>
-      <text x={x + w - 6} y={y + 19} fontSize={13} fontWeight={700} fill={INK} textAnchor="end" style={{ fontFamily: "var(--font-geist-mono, monospace)" }}>
-        {d > 0 ? `${d} m` : "— m"}
+      {/* the up/down arrow between the two scale names */}
+      <g stroke={INK} strokeWidth={0.9} fill="none">
+        <line x1={x + 12} y1={y + 20} x2={x + 12} y2={y + 30} />
+        <path d={`M ${x + 9} ${y + 23} L ${x + 12} ${y + 19} L ${x + 15} ${y + 23}`} />
+        <path d={`M ${x + 9} ${y + 27} L ${x + 12} ${y + 31} L ${x + 15} ${y + 27}`} />
+      </g>
+      <text x={x + 40} y={y + 28} fontSize={14} fontWeight={800} fill={INK}>
+        =D
       </text>
-      <text x={x + w / 2} y={y + 11} fontSize={8} fill={INK} textAnchor="middle">
-        = D
+      <DotLine x1={x + 62} x2={x + w - 16} y={y + 30} />
+      <Val x={x + w - 18} y={y + 28} value={d > 0 ? String(d) : ""} size={11} />
+      <text x={x + w - 12} y={y + 30} fontSize={8} fill={INK}>
+        m
       </text>
     </g>
   );
 }
 
-function OutOfSquare({ computed, isTruck, y, tr }: { computed: JobComputed; isTruck: boolean; y: number; tr: Tr }) {
-  const shown = isTruck ? computed.axles.filter((a) => !a.isSteering) : computed.axles;
-  const x0 = M;
-  const cylW = 88;
-  const gap = 20;
+/**
+ * The out-of-square block: one drum per axle laid out along the vehicle, with
+ * the C-value boxes and the axle-to-axle difference, as printed.
+ */
+function OutOfSquare({
+  computed,
+  slots,
+  isTruck,
+  y,
+}: {
+  computed: JobComputed;
+  slots: AxleComputed[];
+  isTruck: boolean;
+  y: number;
+}) {
+  // The sheet draws the driven/trailer axles here — the steered axle is not
+  // part of the squareness check.
+  const shown = isTruck ? slots.filter((a) => !a.isSteering) : slots;
+  const pairs = chunk(shown, 2);
+
+  // Four drums have to step more gently than two to stay on the page.
+  const many = shown.length > 2;
+  const stepX = many ? 100 : 108;
+  const stepY = many ? 15 : 34;
+  const drumR = many ? 22 : 28;
+  const baseX = M + 170;
+  const baseY = y + (many ? 112 : 96);
+
   return (
     <g>
-      <line x1={M} y1={y} x2={SHEET_W - M} y2={y} stroke={INK} strokeWidth={0.9} />
-      <text x={M} y={y + 12} fontSize={7} fontWeight={700} fill={INK}>
-        SNEDSTÄLLNING · {tr("OUT OF SQUARE")} · ANGLE FAUSSE
-      </text>
+      {["SNEDSTÄLLNING", "SCHRÄGSTÄLLUNG", "OUT OF SQUARE", "ANGLE FAUSSÉ"].map((l, i) => (
+        <text key={l} x={M} y={y + 22 + i * 10} fontSize={8} fontWeight={600} fill={INK}>
+          {l}
+        </text>
+      ))}
 
+      {/* the drums, stepping back and down along the vehicle */}
+      {shown.map((a, i) => (
+        <Drum
+          key={a.id}
+          cx={baseX + i * stepX}
+          cy={baseY + i * stepY}
+          r={drumR}
+          label={a.wheelNo.left}
+          status={a.oosVerdict.status}
+        />
+      ))}
+
+      {/* one value box per axle, tied back to its drum */}
       {shown.map((a, i) => {
-        const cx = x0 + 30 + i * (cylW + gap);
-        const cyl = y + 44;
-        const offset = a.oos === undefined ? 0 : Math.max(-14, Math.min(14, a.oos * 3));
-        return <Cylinder key={a.id} x={cx + offset} y={cyl} w={cylW} label={`C${a.wheelNo.left}`} status={a.oosVerdict.status} value={a.oos} />;
+        const bx = baseX + 22 + i * stepX;
+        const by = baseY - 62 + i * stepY;
+        return (
+          <ValueTab
+            key={`v${a.id}`}
+            x={bx}
+            y={by}
+            label={a.wheelNo.right}
+            value={a.oos !== undefined ? String(round(Math.abs(a.oos), 2)) : ""}
+            status={a.oosVerdict.status}
+            drumX={baseX + i * stepX}
+            drumY={baseY + i * stepY}
+          />
+        );
       })}
 
-      {computed.parallelism.map((p, i) => {
-        const bx = SHEET_W - M - 120;
-        const by = y + 20 + i * 22;
-        const c = vfill(p.verdict.status);
+      {/* the difference between the two axles of each pair */}
+      {pairs.map((pair, pi) => {
+        if (pair.length < 2) return null;
+        const [first, second] = pair;
+        const idx = shown.indexOf(first);
+        const bx = baseX + 86 + idx * stepX;
+        const by = baseY - 88 + idx * stepY;
+        const par = computed.parallelism.find((p) => p.to === second.index && p.from === first.index);
+        const diff =
+          par?.value !== undefined
+            ? par.value
+            : first.oos !== undefined && second.oos !== undefined
+              ? first.oos - second.oos
+              : undefined;
+        const status = par?.verdict.status ?? "unknown";
+        const c = vfill(status);
         return (
-          <g key={p.to}>
-            <text x={bx - 6} y={by + 11} fontSize={6.5} fill={INK} textAnchor="end">
-              A1↔A{p.to + 1}
+          <g key={`d${pi}`}>
+            <text x={bx - 5} y={by + 13} fontSize={6} fontWeight={700} fill={INK} textAnchor="end">
+              DIFF. C{first.wheelNo.left}/C{first.wheelNo.right}-C{second.wheelNo.left}/C{second.wheelNo.right}
             </text>
-            <rect x={bx} y={by} width={110} height={16} fill={c.fill} stroke={INK} strokeWidth={0.8} />
-            <text x={bx + 4} y={by + 11} fontSize={6.5} fill={GREY}>
-              DIFF
+            <rect x={bx} y={by} width={112} height={21} fill={c.fill} stroke={INK} strokeWidth={LINE} />
+            <text x={bx + 6} y={by + 16} fontSize={12} fontWeight={800} fill={INK}>
+              C
+              <tspan fontSize={7.5} dy={2}>
+                {first.wheelNo.right}
+              </tspan>
+              <tspan fontSize={12} dy={-2}>
+                {" − "}
+              </tspan>
+              C
+              <tspan fontSize={7.5} dy={2}>
+                {second.wheelNo.right}
+              </tspan>
+              <tspan fontSize={12} dy={-2}>
+                =
+              </tspan>
             </text>
-            <text x={bx + 106} y={by + 11} fontSize={9} fontWeight={700} fill={c.text} textAnchor="end" style={{ fontFamily: "var(--font-geist-mono, monospace)" }}>
-              {p.value !== undefined ? `${withSign(p.value, 2)} mm/m` : "—"}
-            </text>
+            <DotLine x1={bx + 68} x2={bx + 108} y={by + 17} />
+            <Val
+              x={bx + 107}
+              y={by + 15}
+              value={diff !== undefined ? String(round(Math.abs(diff), 2)) : ""}
+              fill={c.text}
+              size={9}
+            />
           </g>
         );
       })}
@@ -834,35 +1307,72 @@ function OutOfSquare({ computed, isTruck, y, tr }: { computed: JobComputed; isTr
   );
 }
 
-function Cylinder({
+/** "C₄ ± ……" tab pinned above its drum. */
+function ValueTab({
   x,
   y,
-  w,
   label,
-  status,
   value,
+  status,
+  drumX,
+  drumY,
 }: {
   x: number;
   y: number;
-  w: number;
-  label: string;
+  label: number;
+  value: string;
   status: VerdictStatus;
-  value?: number;
+  drumX: number;
+  drumY: number;
 }) {
-  const h = 34;
-  const ry = h / 2;
-  const rx = 8;
+  const w = 68;
+  const h = 22;
   const c = vfill(status);
   return (
     <g>
-      <rect x={x} y={y - ry} width={w} height={h} fill={c.fill} stroke={INK} strokeWidth={0.9} />
-      <ellipse cx={x} cy={y} rx={rx} ry={ry} fill={c.fill} stroke={INK} strokeWidth={0.9} />
-      <ellipse cx={x + w} cy={y} rx={rx} ry={ry} fill={c.fill} stroke={INK} strokeWidth={0.9} />
-      <text x={x + w / 2} y={y + 3} fontSize={8} fontWeight={700} fill={INK} textAnchor="middle">
-        {label}
+      <rect x={x} y={y} width={w} height={h} fill={c.fill} stroke={INK} strokeWidth={LINE} />
+      <text x={x + 5} y={y + 16} fontSize={13} fontWeight={800} fill={INK}>
+        C
+        <tspan fontSize={7.5} dy={2}>
+          {label}
+        </tspan>
       </text>
-      <text x={x + w / 2} y={y + ry + 12} fontSize={7} fill={c.text} textAnchor="middle" style={{ fontFamily: "var(--font-geist-mono, monospace)" }}>
-        {value !== undefined ? `${withSign(value, 2)} mm/m` : "—"}
+      <PlusMinus x={x + 33} y={y + 10} size={7} />
+      <DotLine x1={x + 40} x2={x + w - 4} y={y + 17} />
+      <Val x={x + w - 5} y={y + 15} value={value} fill={c.text} size={8.5} />
+      {/* the leader back to the drum this value belongs to */}
+      <line x1={x + 2} y1={y + h} x2={drumX} y2={drumY} stroke={INK} strokeWidth={0.5} />
+    </g>
+  );
+}
+
+/** A wheel drawn as a drum in perspective, the way the sheet shows squareness. */
+function Drum({
+  cx,
+  cy,
+  r,
+  label,
+  status,
+}: {
+  cx: number;
+  cy: number;
+  r: number;
+  label: number;
+  status: VerdictStatus;
+}) {
+  const off = r * 0.66;
+  const c = vfill(status);
+  return (
+    <g>
+      <circle cx={cx + off} cy={cy - off * 0.35} r={r} fill={c.fill} stroke={INK} strokeWidth={0.9} />
+      <line x1={cx} y1={cy - r} x2={cx + off} y2={cy - r - off * 0.35} stroke={INK} strokeWidth={0.9} />
+      <line x1={cx} y1={cy + r} x2={cx + off} y2={cy + r - off * 0.35} stroke={INK} strokeWidth={0.9} />
+      <circle cx={cx} cy={cy} r={r} fill={c.fill} stroke={INK} strokeWidth={LINE} />
+      <text x={cx} y={cy + 5} fontSize={r > 24 ? 14 : 12} fontWeight={800} fill={INK} textAnchor="middle">
+        C
+        <tspan fontSize={8.5} dy={2.5}>
+          {label}
+        </tspan>
       </text>
     </g>
   );

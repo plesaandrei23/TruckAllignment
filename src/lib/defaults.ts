@@ -7,7 +7,7 @@
  * out-of-square) are pre-filled from the JOSAM manual.
  */
 
-import type { Axle, Job, SpecProfile, VehicleType } from "./types";
+import type { Axle, AxleReading, Job, ReadingStage, SpecProfile, VehicleType } from "./types";
 import { MM_PER_DEGREE } from "./calc";
 
 /** Max axles the editor allows per vehicle type (report template extends to fit). */
@@ -31,13 +31,18 @@ export function newAxle(isSteering: boolean): Axle {
   };
 }
 
-/** A fresh job. Trucks start with a steering axle + one drive axle; trailers with two. */
+/**
+ * A fresh job.
+ *
+ * A truck starts with the steering axle alone — a rear axle is only measured
+ * when it is actually being aligned, and the report keeps its slot blank
+ * either way. A trailer starts with two, since trailer work is about how its
+ * axles sit relative to each other.
+ */
 export function newJob(vehicleType: VehicleType): Job {
   const now = Date.now();
   const axles: Axle[] =
-    vehicleType === "truck"
-      ? [newAxle(true), newAxle(false)]
-      : [newAxle(false), newAxle(false)];
+    vehicleType === "truck" ? [newAxle(true)] : [newAxle(false), newAxle(false)];
   return {
     id: uid(),
     createdAt: now,
@@ -50,14 +55,26 @@ export function newJob(vehicleType: VehicleType): Job {
 }
 
 /**
- * An 8×4 truck preset: 4 axles with the two front axles steering. Uses the 8×4
- * tolerance profile.
+ * An 8×4 truck preset: both front axles steer, so both are measured from the
+ * start. Rear axles are added only if they are being aligned too.
  */
 export function newTruck8x4(): Job {
   const job = newJob("truck");
-  job.axles = [newAxle(true), newAxle(true), newAxle(false), newAxle(false)];
+  job.axles = [newAxle(true), newAxle(true)];
   job.specProfileId = "builtin-truck-8x4";
   return job;
+}
+
+/** Snapshot the axle's current scale readings for the history trail. */
+export function newAxleReading(axle: Axle, d: number, stage: ReadingStage): AxleReading {
+  return {
+    id: uid(),
+    at: Date.now(),
+    stage,
+    D: d,
+    left: { A: axle.left.A, B: axle.left.B },
+    right: { A: axle.right.A, B: axle.right.B },
+  };
 }
 
 /** Fixed limits taken straight from the JOSAM manual. */
